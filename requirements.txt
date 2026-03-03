@@ -1,0 +1,5 @@
+Flask==2.3.3
+peewee==3.16.2
+pytest==7.4.2
+pytest-flask==1.2.0
+requests==2.31.0

@@ -54,6 +54,8 @@ def app():
     
     yield app
     
+    # Fermer la base de données avant de supprimer le fichier
+    db.close()
     os.close(db_fd)
     os.unlink(db_path)
 
@@ -72,10 +74,18 @@ def sample_order(app):
     """Create a sample order for testing."""
     with app.app_context():
         product = Product.get_by_id(1)
+        # Calculer total_price_tax (total + shipping + tax QC par défaut)
+        total_price = 2000  # 2 * $10.00
+        shipping_price = 500  # $5.00 for weight <= 500g
+        subtotal = total_price + shipping_price
+        tax_amount = subtotal * 0.15  # 15% QC tax
+        total_price_tax = subtotal + tax_amount
+        
         order = Order.create(
             product=product,
             quantity=2,
-            total_price=2000,  # 2 * $10.00
-            shipping_price=500  # $5.00 for weight <= 500g
+            total_price=total_price,
+            shipping_price=shipping_price,
+            total_price_tax=total_price_tax
         )
         return order

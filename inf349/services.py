@@ -103,28 +103,41 @@ class OrderService:
     @staticmethod
     def update_order_info(order_id, email, shipping_info):
         """Update order with customer information"""
-        order = OrderService.get_order(order_id)
-        if not order:
-            raise ValueError("Order not found")
+        if not db.is_connection_usable():
+            db.connect()
         
-        if order.paid:
-            raise ValueError("Cannot update paid order")
-        
-        # Create shipping information
-        shipping = ShippingInformation.create(
-            country=shipping_info['country'],
-            address=shipping_info['address'],
-            postal_code=shipping_info['postal_code'],
-            city=shipping_info['city'],
-            province=shipping_info['province']
-        )
-        
-        # Update order
-        order.email = email
-        order.shipping_information = shipping
-        order.save()
-        
-        return order
+        try:
+            order = OrderService.get_order(order_id)
+            if not order:
+                raise ValueError("Order not found")
+            
+            if order.paid:
+                raise ValueError("Cannot update paid order")
+            
+            # Create shipping information
+            shipping = ShippingInformation.create(
+                country=shipping_info['country'],
+                address=shipping_info['address'],
+                postal_code=shipping_info['postal_code'],
+                city=shipping_info['city'],
+                province=shipping_info['province']
+            )
+            
+            # Recalculate tax based on new province
+            total_amount = order.total_price + order.shipping_price
+            tax_amount = calculate_tax(total_amount, shipping_info['province'])
+            total_price_tax = total_amount + tax_amount
+            
+            # Update order
+            order.email = email
+            order.shipping_information = shipping
+            order.total_price_tax = total_price_tax
+            order.save()
+            
+            return order
+        finally:
+            if not db.is_closed():
+                db.close()
     
     @staticmethod
     def process_payment(order_id, credit_card_info):

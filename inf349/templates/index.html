@@ -283,6 +283,7 @@
         <nav>
             <a href="/ui" class="active">Boutique</a>
             <a href="/ui/orders">Mes commandes</a>
+            <a href="/ui/admin">Admin</a>
         </nav>
         <div class="user-area" id="user-area">
             <button class="btn-login" onclick="login()">Se connecter</button>
@@ -348,22 +349,23 @@
         let allProducts = [];
 
         // ── LOGIN ──
-        function login() {
-            const name = prompt('Entrez votre prénom :') || 'Kelly';
-            localStorage.setItem('inf349_user', name);
-            renderUserArea();
-        }
-        function logout() {
-            localStorage.removeItem('inf349_user');
-            renderUserArea();
-        }
-        function renderUserArea() {
-            const user = localStorage.getItem('inf349_user');
+        async function renderUserArea() {
+            const res = await fetch('/me');
+            const d = await res.json();
             const area = document.getElementById('user-area');
-            area.innerHTML = user
-                ? `<span>👤 ${user}</span> <a href="#" onclick="logout()">Déconnexion</a>`
-                : `<button class="btn-login" onclick="login()">Se connecter</button>`;
+            if (d.user) {
+                area.innerHTML = `<span>👤 ${d.user}</span> <a href="#" onclick="doLogout()">Déconnexion</a>`;
+                localStorage.setItem('inf349_user', d.user);
+            } else {
+                area.innerHTML = `<a href="/ui/login" class="btn-login">Se connecter</a>`;
+            }
         }
+        async function doLogout() {
+            await fetch('/logout', { method: 'POST' });
+            localStorage.removeItem('inf349_user');
+            location.reload();
+        }
+        function login() { window.location.href = '/ui/login'; }
 
         // ── SAUVEGARDER COMMANDE DANS HISTORIQUE ──
         function saveOrderToHistory(orderId) {

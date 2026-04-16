@@ -1,7 +1,7 @@
 import json
 import os
 
-from flask import Blueprint, request, jsonify, url_for, current_app, redirect
+from flask import Blueprint, request, jsonify, url_for, current_app, redirect, session
 from redis import Redis
 
 from .models import Product
@@ -161,6 +161,74 @@ def update_order(order_id):
         )
         return "", 202
 
+
+# ── AUTH ──────────────────────────────────────────────────────────────────────
+
+USERS = {
+    "kelly": "1234",
+    "admin": "admin123",
+}
+
+
+@bp.route("/login", methods=["POST"])
+def login_route():
+    data = request.get_json(silent=True) or {}
+    username = data.get("username", "").lower().strip()
+    password = data.get("password", "")
+    if USERS.get(username) == password:
+        session["user"] = username
+        return jsonify({"user": username})
+    return jsonify({"error": "Identifiants invalides"}), 401
+
+
+@bp.route("/logout", methods=["POST"])
+def logout_route():
+    session.clear()
+    return jsonify({"message": "ok"})
+
+
+@bp.route("/me", methods=["GET"])
+def me():
+    return jsonify({"user": session.get("user")})
+
+
+# ── ADMIN ─────────────────────────────────────────────────────────────────────
+
+@bp.route("/admin/orders", methods=["GET"])
+def admin_orders_api():
+    from .models import Order
+    orders = []
+    for o in Order.select().order_by(Order.id.desc()).limit(100):
+        orders.append({
+            "id": o.id,
+            "paid": o.paid,
+            "payment_status": o.payment_status,
+            "total_price": o.total_price,
+            "shipping_price": o.shipping_price,
+            "email": o.email,
+        })
+    return jsonify({"orders": orders})
+
+
+@bp.route("/admin/stats", methods=["GET"])
+def admin_stats_api():
+    from .models import Order
+    total = Order.select().count()
+    paid_list = list(Order.select().where(Order.paid == True))
+    paid_count = len(paid_list)
+    revenue = sum(o.total_price + o.shipping_price for o in paid_list)
+    processing = Order.select().where(Order.payment_status == "processing").count()
+    pending = Order.select().where(Order.payment_status == "pending").count()
+    return jsonify({
+        "total_orders": total,
+        "paid_orders": paid_count,
+        "pending_orders": pending,
+        "processing_orders": processing,
+        "revenue_cents": revenue,
+    })
+
+
+# ── ERROR HANDLERS ────────────────────────────────────────────────────────────
 
 @bp.errorhandler(ValidationError)
 def handle_validation_exception(error):

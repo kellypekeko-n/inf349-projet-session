@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INF349 — Connexion</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f6fbf7;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px 36px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            border: 1px solid #eee;
+        }
+
+        .logo {
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #4caf50;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #aaa;
+            font-size: 0.9rem;
+            margin-bottom: 30px;
+        }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            font-size: 0.83rem;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-group input:focus {
+            border-color: #4caf50;
+            box-shadow: 0 0 0 3px rgba(76,175,80,0.12);
+        }
+
+        .btn {
+            width: 100%;
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 6px;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn:hover   { background: #388e3c; }
+        .btn:active  { transform: scale(0.98); }
+        .btn:disabled { background: #aaa; cursor: not-allowed; }
+
+        .error-msg {
+            background: #fdecea;
+            border: 1px solid #ef9a9a;
+            color: #c62828;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.87rem;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .demo-hint {
+            margin-top: 20px;
+            padding: 12px 14px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: #888;
+            text-align: center;
+            border: 1px dashed #ddd;
+        }
+        .demo-hint strong { color: #555; }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 18px;
+            color: #4caf50;
+            text-decoration: none;
+            font-size: 0.88rem;
+        }
+        .back-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <div class="logo">🌿 INF349</div>
+        <p class="subtitle">Connectez-vous pour accéder à votre espace</p>
+
+        <form id="login-form" onsubmit="doLogin(event)">
+            <div class="form-group">
+                <label for="username">Nom d'utilisateur</label>
+                <input type="text" id="username" placeholder="kelly" autocomplete="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Mot de passe</label>
+                <input type="password" id="password" placeholder="••••" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn" id="login-btn">Se connecter</button>
+            <div class="error-msg" id="error-msg"></div>
+        </form>
+
+        <div class="demo-hint">
+            Compte de démo : <strong>kelly</strong> / <strong>1234</strong><br>
+            Admin : <strong>admin</strong> / <strong>admin123</strong>
+        </div>
+
+        <a href="/ui" class="back-link">← Retour à la boutique</a>
+    </div>
+
+    <script>
+        async function doLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('login-btn');
+            const errEl = document.getElementById('error-msg');
+            btn.disabled = true;
+            btn.textContent = 'Connexion...';
+            errEl.style.display = 'none';
+
+            try {
+                const res = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: document.getElementById('username').value,
+                        password: document.getElementById('password').value,
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    // Aussi sauvegarder dans localStorage pour la navbar
+                    localStorage.setItem('inf349_user', data.user);
+                    const next = new URLSearchParams(window.location.search).get('next') || '/ui';
+                    window.location.href = next;
+                } else {
+                    errEl.textContent = 'Identifiants invalides. Réessayez.';
+                    errEl.style.display = 'block';
+                    btn.disabled = false;
+                    btn.textContent = 'Se connecter';
+                }
+            } catch (err) {
+                errEl.textContent = 'Erreur réseau : ' + err.message;
+                errEl.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'Se connecter';
+            }
+        }
+
+        // Si déjà connecté, rediriger
+        fetch('/me').then(r => r.json()).then(d => {
+            if (d.user) window.location.href = '/ui';
+        });
+    </script>
+</body>
+</html>

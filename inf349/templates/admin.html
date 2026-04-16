@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INF349 — Dashboard Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f6fbf7;
+            color: #2e2e2e;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .navbar {
+            display: flex; justify-content: space-between; align-items: center;
+            background: white; padding: 15px 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .navbar .logo { font-weight: 700; color: #4caf50; font-size: 1.3rem; }
+        .navbar nav a {
+            margin: 0 14px; text-decoration: none;
+            color: #555; font-size: 0.95rem; transition: color 0.2s;
+        }
+        .navbar nav a:hover { color: #4caf50; }
+        .navbar nav a.active { color: #4caf50; font-weight: 600; }
+        .user-area { display: flex; align-items: center; gap: 10px; font-size: 0.88rem; }
+        .user-area a { color: #aaa; text-decoration: none; }
+        .user-area a:hover { color: #e53935; }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 36px 20px; flex: 1; }
+
+        .page-header { margin-bottom: 28px; }
+        .page-header h1 { font-size: 1.7rem; margin-bottom: 6px; }
+        .page-header p { color: #777; font-size: 0.95rem; }
+
+        /* ── STATS CARDS ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 14px;
+            padding: 22px 20px;
+            border: 1px solid #eee;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.07);
+        }
+        .stat-card .stat-icon { font-size: 1.8rem; margin-bottom: 10px; }
+        .stat-card .stat-value {
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: #2e2e2e;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+        .stat-card .stat-label { font-size: 0.8rem; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-card.green .stat-value { color: #2e7d32; }
+        .stat-card.blue  .stat-value { color: #1565c0; }
+        .stat-card.orange .stat-value { color: #e65100; }
+        .stat-card.purple .stat-value { color: #6a1b9a; }
+
+        /* ── TABLE ── */
+        .card {
+            background: white; border-radius: 14px;
+            border: 1px solid #eee;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 18px 22px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-header h2 { font-size: 1rem; color: #333; }
+        .card-header small { color: #aaa; font-size: 0.8rem; }
+
+        table { width: 100%; border-collapse: collapse; }
+        thead th {
+            text-align: left; padding: 12px 18px;
+            font-size: 0.75rem; color: #aaa;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            background: #fafafa; border-bottom: 1px solid #eee;
+        }
+        tbody tr { transition: background 0.15s; }
+        tbody tr:hover { background: #f9fdf9; }
+        tbody td { padding: 13px 18px; font-size: 0.88rem; border-bottom: 1px solid #f5f5f5; }
+        tbody tr:last-child td { border-bottom: none; }
+
+        .status-badge {
+            display: inline-block; padding: 3px 10px;
+            border-radius: 20px; font-size: 0.72rem;
+            font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .status-paid       { background: #e8f5e9; color: #2e7d32; }
+        .status-pending    { background: #fff8e1; color: #f57f17; }
+        .status-processing { background: #e3f2fd; color: #1565c0; }
+        .status-failed     { background: #fdecea; color: #c62828; }
+
+        .btn-view {
+            color: #4caf50; text-decoration: none;
+            font-size: 0.82rem; font-weight: 600;
+            transition: color 0.2s;
+        }
+        .btn-view:hover { color: #2e7d32; }
+
+        .access-denied {
+            text-align: center; padding: 60px 20px;
+            background: white; border-radius: 14px;
+            border: 2px dashed #ddd;
+        }
+        .access-denied .icon { font-size: 3rem; margin-bottom: 12px; }
+        .access-denied p { color: #888; margin-bottom: 16px; }
+        .btn-login-link {
+            background: #4caf50; color: white; border: none;
+            padding: 10px 24px; border-radius: 8px; cursor: pointer;
+            font-size: 0.95rem; font-weight: 600; text-decoration: none;
+            display: inline-block; transition: background 0.2s;
+        }
+        .btn-login-link:hover { background: #388e3c; }
+
+        #loading-admin { color: #aaa; font-style: italic; text-align: center; padding: 40px; }
+
+        footer {
+            background: white; padding: 18px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-top: 1px solid #eee; color: #999; font-size: 0.85rem;
+            flex-wrap: wrap; gap: 8px;
+        }
+        footer a { margin-left: 14px; text-decoration: none; color: #999; }
+        footer a:hover { color: #4caf50; }
+
+        @media (max-width: 768px) {
+            .navbar { flex-direction: column; gap: 10px; padding: 12px 20px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            table { font-size: 0.8rem; }
+            thead th, tbody td { padding: 10px 12px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="navbar">
+        <div class="logo">🌿 INF349</div>
+        <nav>
+            <a href="/ui">Boutique</a>
+            <a href="/ui/orders">Mes commandes</a>
+            <a href="/ui/admin" class="active">Admin</a>
+        </nav>
+        <div class="user-area" id="user-area">
+            <a href="/ui/login">Se connecter</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>📊 Dashboard Admin</h1>
+            <p>Vue d'ensemble des commandes et revenus.</p>
+        </div>
+
+        <div id="loading-admin">Chargement...</div>
+        <div id="admin-content" style="display:none">
+
+            <!-- STATS -->
+            <div class="stats-grid" id="stats-grid"></div>
+
+            <!-- TABLEAU COMMANDES -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>📋 Commandes récentes</h2>
+                    <small id="orders-count"></small>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Email</th>
+                            <th>Total</th>
+                            <th>Expédition</th>
+                            <th>Statut</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="denied-block" style="display:none">
+            <div class="access-denied">
+                <div class="icon">🔒</div>
+                <p>Accès réservé aux administrateurs.<br>Connectez-vous pour continuer.</p>
+                <a href="/ui/login?next=/ui/admin" class="btn-login-link">Se connecter</a>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div>© 2026 INF349 — Tous droits réservés</div>
+        <div><a href="#">Confidentialité</a><a href="#">Contact</a></div>
+    </footer>
+
+    <script>
+        async function init() {
+            // Vérifier la session
+            const meRes = await fetch('/me');
+            const meData = await meRes.json();
+
+            const area = document.getElementById('user-area');
+            if (meData.user) {
+                area.innerHTML = `<span>👤 ${meData.user}</span> <a href="#" onclick="doLogout()">Déconnexion</a>`;
+            } else {
+                // Accès refusé
+                document.getElementById('loading-admin').style.display = 'none';
+                document.getElementById('denied-block').style.display = 'block';
+                return;
+            }
+
+            await Promise.all([loadStats(), loadOrders()]);
+            document.getElementById('loading-admin').style.display = 'none';
+            document.getElementById('admin-content').style.display = 'block';
+        }
+
+        async function loadStats() {
+            const res = await fetch('/admin/stats');
+            const d = await res.json();
+
+            document.getElementById('stats-grid').innerHTML = `
+                <div class="stat-card green">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-value">${(d.revenue_cents / 100).toFixed(2)} $</div>
+                    <div class="stat-label">Revenus totaux</div>
+                </div>
+                <div class="stat-card blue">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-value">${d.total_orders}</div>
+                    <div class="stat-label">Total commandes</div>
+                </div>
+                <div class="stat-card purple">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-value">${d.paid_orders}</div>
+                    <div class="stat-label">Commandes payées</div>
+                </div>
+                <div class="stat-card orange">
+                    <div class="stat-icon">⏳</div>
+                    <div class="stat-value">${d.pending_orders}</div>
+                    <div class="stat-label">En attente</div>
+                </div>
+            `;
+        }
+
+        async function loadOrders() {
+            const res = await fetch('/admin/orders');
+            const d = await res.json();
+            const orders = d.orders || [];
+
+            document.getElementById('orders-count').textContent = `${orders.length} commande(s)`;
+
+            if (!orders.length) {
+                document.getElementById('orders-tbody').innerHTML =
+                    '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:24px">Aucune commande</td></tr>';
+                return;
+            }
+
+            const statusLabel = {
+                paid: 'Payée', pending: 'En attente',
+                processing: 'En traitement', failed: 'Échouée'
+            };
+
+            document.getElementById('orders-tbody').innerHTML = orders.map(o => `
+                <tr>
+                    <td><strong>#${o.id}</strong></td>
+                    <td>${o.email || '<span style="color:#ccc">—</span>'}</td>
+                    <td>${(o.total_price / 100).toFixed(2)} $</td>
+                    <td>${(o.shipping_price / 100).toFixed(2)} $</td>
+                    <td><span class="status-badge status-${o.payment_status}">${statusLabel[o.payment_status] || o.payment_status}</span></td>
+                    <td><a href="/ui/order/${o.id}" class="btn-view">Voir →</a></td>
+                </tr>
+            `).join('');
+        }
+
+        async function doLogout() {
+            await fetch('/logout', { method: 'POST' });
+            localStorage.removeItem('inf349_user');
+            window.location.href = '/ui/login';
+        }
+
+        init();
+    </script>
+</body>
+</html>

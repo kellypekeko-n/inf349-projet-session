@@ -16,3 +16,13 @@ def ui_order(order_id):
 @ui_bp.route("/ui/orders", methods=["GET"])
 def ui_orders():
     return render_template("orders.html")
+
+
+@ui_bp.route("/ui/login", methods=["GET"])
+def ui_login():
+    return render_template("login.html")
+
+
+@ui_bp.route("/ui/admin", methods=["GET"])
+def ui_admin():
+    return render_template("admin.html")

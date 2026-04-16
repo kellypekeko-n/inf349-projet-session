@@ -26,14 +26,16 @@ def calculate_tax(amount_cents, province):
     return tax.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-def calculate_total_with_tax(total_price_cents, shipping_price_cents, province=None):
-    subtotal = Decimal(total_price_cents + shipping_price_cents)
+def calculate_total_with_tax(total_price_cents, _shipping_price_cents, province=None):
+    # total_price_tax = total_price * (1 + tax_rate)
+    # Shipping is NOT included in the taxable base (see spec example: 9148 * 1.15 = 10520.20)
+    product_total = Decimal(total_price_cents)
 
     if not province:
-        return subtotal.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        return product_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-    tax = calculate_tax(subtotal, province)
-    return (subtotal + tax).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    tax = calculate_tax(product_total, province)
+    return (product_total + tax).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def normalize_products_payload(data):

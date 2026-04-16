@@ -4,11 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>INF349 — Mes commandes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --green:#4caf50; --green-dark:#388e3c; --green-light:#e8f5e9;
+            --red:#e53935; --text:#1e1e2e; --muted:#6b7280;
+            --border:#e5e7eb; --bg:#f5f7f5; --white:#ffffff;
+            --shadow-sm:0 1px 4px rgba(0,0,0,0.06); --shadow-md:0 4px 16px rgba(0,0,0,0.08);
+            --radius:14px;
+        }
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #f6fbf7;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: var(--bg);
             color: #2e2e2e;
             min-height: 100vh;
             display: flex;
@@ -123,9 +133,11 @@
 <body>
 
     <header class="navbar">
-        <div class="logo">🌿 INF349</div>
+        <a href="/ui" class="logo" style="font-weight:700;color:var(--green);font-size:1.2rem;text-decoration:none;display:flex;align-items:center;gap:7px;">
+            <span style="width:8px;height:8px;background:var(--green);border-radius:50%;display:inline-block"></span>INF349
+        </a>
         <nav>
-            <a href="/ui">Boutique</a>
+            <a href="/ui" style="padding:6px 12px;border-radius:8px;text-decoration:none;color:var(--muted);font-size:0.88rem;font-weight:500;transition:background .15s,color .15s;">Boutique</a>
             <a href="/ui/orders" class="active">Mes commandes</a>
         </nav>
         <div class="user-area" id="user-area">

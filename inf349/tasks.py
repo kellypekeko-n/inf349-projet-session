@@ -23,7 +23,8 @@ def process_payment(order_id, credit_card_info, payment_service_url):
     try:
         order = Order.select().where(Order.id == order_id).get()
 
-        amount_to_charge = int(round(float(order.total_price_tax)))
+        # amount_charged = total_price + shipping_price (no tax — see spec example: 9148 + 1000 = 10148)
+        amount_to_charge = int(order.total_price + order.shipping_price)
 
         payment_service = PaymentService(payment_service_url)
         result = payment_service.process_payment(credit_card_info, amount_to_charge)

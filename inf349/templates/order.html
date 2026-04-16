@@ -4,13 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>INF349 — Commande #{{ order_id }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
+        :root {
+            --green:      #4caf50;
+            --green-dark: #388e3c;
+            --green-light:#e8f5e9;
+            --red:        #e53935;
+            --blue:       #1565c0;
+            --text:       #1e1e2e;
+            --muted:      #6b7280;
+            --border:     #e5e7eb;
+            --bg:         #f5f7f5;
+            --white:      #ffffff;
+            --shadow-sm:  0 1px 4px rgba(0,0,0,0.06);
+            --shadow-md:  0 4px 16px rgba(0,0,0,0.08);
+            --radius:     14px;
+        }
+
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #f6fbf7;
-            color: #2e2e2e;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -18,249 +37,181 @@
 
         /* ── NAVBAR ── */
         .navbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: white;
-            padding: 15px 40px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            position: sticky;
-            top: 0;
-            z-index: 100;
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--white); padding: 0 40px; height: 64px;
+            box-shadow: var(--shadow-sm); border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; z-index: 100;
         }
-        .navbar .logo { font-weight: 700; color: #4caf50; font-size: 1.3rem; }
+        .navbar .logo {
+            font-weight: 700; color: var(--green); font-size: 1.2rem;
+            display: flex; align-items: center; gap: 7px; text-decoration: none;
+        }
+        .logo-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; }
+        .navbar nav { display: flex; gap: 4px; }
         .navbar nav a {
-            margin: 0 14px;
-            text-decoration: none;
-            color: #555;
-            font-size: 0.95rem;
-            transition: color 0.2s;
+            padding: 6px 12px; border-radius: 8px; text-decoration: none;
+            color: var(--muted); font-size: 0.88rem; font-weight: 500;
+            transition: background 0.15s, color 0.15s;
         }
-        .navbar nav a:hover { color: #4caf50; }
-        .user-area { display: flex; align-items: center; gap: 10px; font-size: 0.88rem; }
-        .user-area a { color: #aaa; text-decoration: none; }
-        .user-area a:hover { color: #e53935; }
+        .navbar nav a:hover { background: #f3f4f6; color: var(--text); }
+        .user-area { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
+        .user-area span { color: var(--text); font-weight: 500; }
+        .user-area a { color: var(--muted); text-decoration: none; padding: 4px 8px; border-radius: 6px; transition: color 0.15s, background 0.15s; }
+        .user-area a:hover { color: var(--red); background: #fef2f2; }
         .btn-login {
-            background: #4caf50; color: white; border: none;
+            background: var(--green); color: white !important; border: none;
             padding: 7px 16px; border-radius: 20px; cursor: pointer;
-            font-size: 0.85rem; font-weight: 600; transition: background 0.2s;
+            font-size: 0.82rem; font-weight: 600; transition: background 0.2s; text-decoration: none !important;
         }
-        .btn-login:hover { background: #388e3c; }
-        .back-link {
-            color: #4caf50;
-            text-decoration: none;
-            font-size: 0.88rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .back-link:hover { text-decoration: underline; }
+        .btn-login:hover { background: var(--green-dark) !important; }
 
         /* ── CONTAINER ── */
-        .container {
-            max-width: 820px;
-            margin: 0 auto;
-            padding: 32px 20px;
-            flex: 1;
-        }
+        .container { max-width: 820px; margin: 0 auto; padding: 32px 20px; flex: 1; }
 
         .page-header {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            margin-bottom: 28px;
-            flex-wrap: wrap;
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 28px; flex-wrap: wrap;
         }
-        .page-header h1 { font-size: 1.6rem; }
+        .page-header h1 { font-size: 1.55rem; font-weight: 700; letter-spacing: -0.4px; }
 
         /* ── STATUS BADGE ── */
         .status-badge {
-            display: inline-block;
-            padding: 5px 14px;
-            border-radius: 20px;
-            font-size: 0.78rem;
-            font-weight: 700;
-            letter-spacing: 0.03em;
-            text-transform: uppercase;
+            display: inline-block; padding: 5px 14px;
+            border-radius: 20px; font-size: 0.72rem;
+            font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
         }
-        .status-paid       { background: #e8f5e9; color: #2e7d32; }
+        .status-paid       { background: var(--green-light); color: var(--green-dark); }
         .status-pending    { background: #fff8e1; color: #f57f17; }
         .status-processing { background: #e3f2fd; color: #1565c0; }
         .status-failed     { background: #fdecea; color: #c62828; }
 
         /* ── CARD ── */
         .card {
-            background: white;
-            border-radius: 14px;
-            padding: 22px 24px;
-            border: 1px solid #eee;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            margin-bottom: 20px;
+            background: var(--white); border-radius: var(--radius);
+            padding: 22px 24px; border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm); margin-bottom: 20px;
         }
         .card h2 {
-            font-size: 1rem;
-            color: #555;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 16px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #f0f0f0;
+            font-size: 0.8rem; font-weight: 700;
+            color: var(--muted); text-transform: uppercase;
+            letter-spacing: 0.08em; margin-bottom: 16px;
+            padding-bottom: 10px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 7px;
         }
 
         /* ── INFO GRID ── */
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; }
-        .info-row { padding: 7px 0; border-bottom: 1px solid #f5f5f5; }
-        .info-row label { display: block; font-size: 0.72rem; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
-        .info-row span { font-size: 0.92rem; font-weight: 500; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+        .info-row { padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
+        .info-row:last-child { border-bottom: none; }
+        .info-row label { display: block; font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+        .info-row span { font-size: 0.9rem; font-weight: 500; }
 
         /* ── TABLE PRODUITS ── */
         table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-        th { text-align: left; font-size: 0.75rem; color: #aaa; text-transform: uppercase; border-bottom: 1px solid #eee; padding: 6px 8px; }
-        td { padding: 9px 8px; border-bottom: 1px solid #f5f5f5; font-size: 0.9rem; }
+        th { text-align: left; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); padding: 7px 10px; }
+        td { padding: 10px; border-bottom: 1px solid #f5f5f5; font-size: 0.88rem; }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background: #fafafa; }
 
         /* ── TRANSACTION ── */
         .tx-box {
-            background: #fafafa;
-            border: 1px solid #eee;
-            border-radius: 10px;
-            padding: 14px 16px;
+            background: #fafafa; border: 1px solid var(--border);
+            border-radius: 10px; padding: 14px 16px;
         }
         .tx-box.success { border-color: #a5d6a7; background: #f1f8e9; }
         .tx-box.failure { border-color: #ef9a9a; background: #fdecea; }
 
         /* ── FORMULAIRES ── */
         .form-group { margin-bottom: 14px; }
-        .form-group label { display: block; font-size: 0.83rem; font-weight: 600; color: #555; margin-bottom: 5px; }
-        .form-group input {
-            width: 100%;
-            padding: 10px 13px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 0.93rem;
-            outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
+        .form-group label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 10px 13px;
+            border: 1.5px solid var(--border); border-radius: 8px;
+            font-size: 0.92rem; outline: none; font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s; background: var(--white);
         }
-        .form-group input:focus {
-            border-color: #4caf50;
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--green);
             box-shadow: 0 0 0 3px rgba(76,175,80,0.12);
         }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-        /* ── PAIEMENT STRIPE-LIKE ── */
-        .card-payment { /* réutilise .card */ }
-        .card-payment .card-icon {
-            font-size: 2rem;
-            margin-bottom: 12px;
-        }
+        /* Stripe-like payment section */
         .secure-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            background: #e8f5e9;
-            color: #2e7d32;
-            font-size: 0.78rem;
-            font-weight: 600;
-            padding: 4px 10px;
-            border-radius: 20px;
-            margin-bottom: 16px;
+            display: inline-flex; align-items: center; gap: 5px;
+            background: var(--green-light); color: var(--green-dark);
+            font-size: 0.75rem; font-weight: 600;
+            padding: 4px 10px; border-radius: 20px; margin-bottom: 16px;
         }
+        .card-number-input { font-family: 'Courier New', monospace; letter-spacing: 2px; }
 
         /* ── BOUTONS ── */
         .btn {
-            background: #66bb6a;
-            border: none;
-            padding: 11px 26px;
-            color: white;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.95rem;
-            font-weight: 600;
-            transition: background 0.2s, transform 0.1s;
-            width: 100%;
-            margin-top: 6px;
+            background: var(--green); border: none;
+            padding: 11px 26px; color: white;
+            border-radius: 9px; cursor: pointer;
+            font-size: 0.92rem; font-weight: 600;
+            transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+            width: 100%; margin-top: 6px; font-family: inherit;
         }
-        .btn:hover   { background: #4caf50; }
+        .btn:hover   { background: var(--green-dark); box-shadow: 0 4px 12px rgba(76,175,80,0.3); }
         .btn:active  { transform: scale(0.98); }
-        .btn:disabled { background: #bbb; cursor: not-allowed; }
+        .btn:disabled { background: #d1d5db; cursor: not-allowed; box-shadow: none; }
         .btn-pay { background: #1976d2; }
-        .btn-pay:hover { background: #1565c0; }
+        .btn-pay:hover { background: var(--blue); box-shadow: 0 4px 12px rgba(25,118,210,0.3); }
 
-        /* ── LOADER / SPINNER ── */
+        /* ── SPINNER ── */
         .loader {
-            border: 4px solid #eee;
-            border-top: 4px solid #4caf50;
-            border-radius: 50%;
-            width: 42px;
-            height: 42px;
-            animation: spin 0.9s linear infinite;
-            margin: 20px auto;
+            border: 3px solid var(--border); border-top: 3px solid var(--green);
+            border-radius: 50%; width: 38px; height: 38px;
+            animation: spin 0.9s linear infinite; margin: 18px auto;
         }
         .loader.blue { border-top-color: #1976d2; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
         /* ── MESSAGES ── */
         .message {
-            margin-top: 12px;
-            padding: 10px 14px;
-            border-radius: 8px;
-            font-size: 0.87rem;
+            margin-top: 12px; padding: 10px 14px;
+            border-radius: 8px; font-size: 0.85rem; line-height: 1.4;
         }
-        .message.success { background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32; }
-        .message.error   { background: #fdecea; border: 1px solid #ef9a9a; color: #c62828; }
-        .message.info    { background: #e3f2fd; border: 1px solid #90caf9; color: #1565c0; }
+        .message.success { background: var(--green-light); border: 1px solid #a5d6a7; color: #1b5e20; }
+        .message.error   { background: #fdecea; border: 1px solid #ef9a9a; color: #b71c1c; }
+        .message.info    { background: #e3f2fd; border: 1px solid #90caf9; color: var(--blue); }
 
-        #loading { color: #aaa; font-style: italic; padding: 32px 0; text-align: center; }
+        #loading { color: var(--muted); padding: 40px 0; text-align: center; }
         #error-block .message { margin-top: 0; }
 
         /* ── TOAST ── */
         .toast {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            background: #323232;
-            color: white;
-            padding: 12px 22px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.2);
-            transition: opacity 0.3s;
-            z-index: 999;
+            position: fixed; bottom: 24px; right: 24px;
+            background: var(--text); color: white;
+            padding: 12px 22px; border-radius: 10px;
+            font-size: 0.88rem; font-weight: 500;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            transition: opacity 0.3s; z-index: 999;
         }
-        .toast.green { background: #43a047; }
-        .toast.red   { background: #e53935; }
+        .toast.green { background: #2e7d32; }
+        .toast.red   { background: #c62828; }
         .toast.hidden { opacity: 0; pointer-events: none; }
 
-        /* ── PROCESSING ── */
-        .processing-card {
-            text-align: center;
-            padding: 32px;
-        }
-        .processing-card p {
-            color: #1565c0;
-            font-weight: 600;
-            margin-top: 12px;
-        }
-        .processing-card small { color: #888; font-size: 0.82rem; }
+        /* ── PROCESSING CARD ── */
+        .processing-card { text-align: center; padding: 36px 24px; }
+        .processing-card p { color: var(--blue); font-weight: 600; margin-top: 14px; font-size: 1rem; }
+        .processing-card small { color: var(--muted); font-size: 0.82rem; display: block; margin-top: 6px; }
 
         /* ── FOOTER ── */
         footer {
-            background: white;
-            padding: 18px 40px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-top: 1px solid #eee;
-            color: #999;
-            font-size: 0.85rem;
-            flex-wrap: wrap;
-            gap: 8px;
+            background: var(--white); padding: 16px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-top: 1px solid var(--border); color: var(--muted); font-size: 0.8rem;
+            flex-wrap: wrap; gap: 8px;
         }
-        footer a { margin-left: 14px; text-decoration: none; color: #999; transition: color 0.2s; }
-        footer a:hover { color: #4caf50; }
+        footer a { margin-left: 14px; text-decoration: none; color: var(--muted); transition: color 0.2s; }
+        footer a:hover { color: var(--green); }
 
         /* ── RESPONSIVE ── */
         @media (max-width: 768px) {
-            .navbar { flex-direction: column; gap: 10px; padding: 12px 20px; }
+            .navbar { padding: 0 16px; height: auto; padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
             .info-grid { grid-template-columns: 1fr; }
             .form-row { grid-template-columns: 1fr; }
             footer { flex-direction: column; text-align: center; }
@@ -271,14 +222,14 @@
 
     <!-- NAVBAR -->
     <header class="navbar">
-        <div class="logo">🌿 INF349</div>
+        <a href="/ui" class="logo"><span class="logo-dot"></span>INF349</a>
         <nav>
             <a href="/ui">Boutique</a>
-            <a href="/ui/orders">Mes commandes</a>
+            <a href="/ui/orders">Commandes</a>
             <a href="/ui/admin">Admin</a>
         </nav>
         <div class="user-area" id="user-area">
-            <button class="btn-login" onclick="login()">Se connecter</button>
+            <a href="/ui/login" class="btn-login">Se connecter</a>
         </div>
     </header>
 
@@ -299,7 +250,7 @@
 
             <!-- RÉSUMÉ -->
             <div class="card">
-                <h2>📋 Résumé</h2>
+                <h2>📋 Résumé de la commande</h2>
                 <div class="info-grid">
                     <div class="info-row"><label>ID</label><span id="o-id"></span></div>
                     <div class="info-row"><label>Statut</label><span id="o-paid"></span></div>
@@ -372,7 +323,14 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Province *</label>
-                            <input type="text" id="province" placeholder="QC" maxlength="2" required>
+                            <select id="province" required style="width:100%;padding:10px 13px;border:1px solid #ddd;border-radius:8px;font-size:0.93rem;outline:none;background:white;transition:border-color 0.2s,box-shadow 0.2s;">
+                                <option value="">— Choisir —</option>
+                                <option value="QC">Québec (QC) — 15%</option>
+                                <option value="ON">Ontario (ON) — 13%</option>
+                                <option value="AB">Alberta (AB) — 5%</option>
+                                <option value="BC">Colombie-Britannique (BC) — 12%</option>
+                                <option value="NS">Nouvelle-Écosse (NS) — 14%</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Code postal *</label>
@@ -399,7 +357,7 @@
                     </div>
                     <div class="form-group">
                         <label>Numéro de carte *</label>
-                        <input type="text" id="cc-num" placeholder="4242 4242 4242 4242" maxlength="19" required>
+                        <input type="text" id="cc-num" class="card-number-input" placeholder="4242 4242 4242 4242" maxlength="19" required>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -561,7 +519,7 @@
             document.getElementById('o-total').textContent = fmt(order.total_price);
             document.getElementById('o-shipping').textContent = fmt(order.shipping_price);
             document.getElementById('o-tax').textContent = order.total_price_tax !== undefined
-                ? parseFloat(order.total_price_tax).toFixed(2) + ' $'
+                ? fmt(order.total_price_tax)
                 : fmt(order.total_price + order.shipping_price);
 
             // Produits
@@ -581,7 +539,7 @@
                 document.getElementById('email').value       = order.email || '';
                 document.getElementById('address').value     = si.address || '';
                 document.getElementById('city').value        = si.city || '';
-                document.getElementById('province').value    = si.province || '';
+                document.getElementById('province').value    = (si.province || '').toUpperCase();
                 document.getElementById('postal_code').value = si.postal_code || '';
                 document.getElementById('country').value     = si.country || '';
             }
@@ -633,7 +591,7 @@
                         address:     document.getElementById('address').value,
                         postal_code: document.getElementById('postal_code').value,
                         city:        document.getElementById('city').value,
-                        province:    document.getElementById('province').value.toUpperCase(),
+                        province:    document.getElementById('province').value,
                     }
                 }
             };

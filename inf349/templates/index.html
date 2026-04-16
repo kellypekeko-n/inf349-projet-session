@@ -314,6 +314,9 @@
                     <button class="btn" id="order-btn" disabled onclick="createOrder()">
                         Commander →
                     </button>
+                    <a href="/ui/login" id="login-notice" style="display:none;width:100%;text-align:center;margin-top:12px;padding:11px;background:#f3f4f6;border-radius:9px;color:#6b7280;font-size:0.88rem;font-weight:600;text-decoration:none;display:none;border:1.5px dashed #d1d5db;transition:background 0.2s;">
+                        🔒 Se connecter pour commander
+                    </a>
                     <div id="create-message"></div>
                 </div>
 
@@ -346,27 +349,42 @@
     <script>
         let allProducts = [];
         let selectedItems = {};
+        let currentUser = null;
 
         // ── AUTH ──
         async function renderUserArea() {
             try {
                 const res = await fetch('/me');
                 const d = await res.json();
+                currentUser = d.user || null;
                 const area = document.getElementById('user-area');
-                if (d.user) {
+                if (currentUser) {
                     area.innerHTML = `
-                        <span class="username">👤 ${d.user}</span>
+                        <span class="username">👤 ${currentUser}</span>
                         <a href="#" class="btn-logout" onclick="doLogout()">Déconnexion</a>`;
-                    localStorage.setItem('inf349_user', d.user);
+                    localStorage.setItem('inf349_user', currentUser);
                 } else {
                     area.innerHTML = `<a href="/ui/login" class="btn-login">Se connecter</a>`;
                 }
+                updateOrderBtn();
             } catch (e) {}
         }
         async function doLogout() {
             await fetch('/logout', { method: 'POST' });
             localStorage.removeItem('inf349_user');
             location.reload();
+        }
+
+        function updateOrderBtn() {
+            const btn = document.getElementById('order-btn');
+            const notice = document.getElementById('login-notice');
+            if (!currentUser) {
+                btn.style.display = 'none';
+                if (notice) notice.style.display = 'block';
+            } else {
+                btn.style.display = 'block';
+                if (notice) notice.style.display = 'none';
+            }
         }
 
         // ── TOAST ──
@@ -535,6 +553,7 @@
 
         // ── CRÉER COMMANDE ──
         async function createOrder() {
+            if (!currentUser) { window.location.href = '/ui/login'; return; }
             const products = Object.values(selectedItems).map(it => ({ id: it.id, quantity: it.qty }));
             if (!products.length) return;
 

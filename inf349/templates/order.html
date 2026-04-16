@@ -346,6 +346,18 @@
                 </form>
             </div>
 
+            <!-- CONNEXION REQUISE -->
+            <div id="auth-required-block" style="display:none">
+                <div style="background:white;border-radius:14px;border:2px dashed #d1d5db;padding:36px;text-align:center;">
+                    <div style="font-size:2rem;margin-bottom:12px;">🔒</div>
+                    <p style="color:#374151;font-weight:600;margin-bottom:6px;">Connexion requise</p>
+                    <p style="color:#6b7280;font-size:0.88rem;margin-bottom:20px;">Vous devez être connecté pour compléter ou payer cette commande.</p>
+                    <a href="/ui/login?next=/ui/order/{{ order_id }}" style="background:#4caf50;color:white;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.92rem;">
+                        Se connecter →
+                    </a>
+                </div>
+            </div>
+
             <!-- FORMULAIRE PAIEMENT -->
             <div class="card card-payment" id="payment-form-section" style="display:none">
                 <h2>💳 Paiement</h2>
@@ -422,9 +434,9 @@
             const d = await res.json();
             const area = document.getElementById('user-area');
             if (d.user) {
-                area.innerHTML = `<span>👤 ${d.user}</span> <a href="#" onclick="doLogout()">Déconnexion</a>`;
+                area.innerHTML = `<span style="font-weight:500">👤 ${d.user}</span> <a href="#" onclick="doLogout()" style="color:#6b7280;font-size:0.8rem;padding:4px 8px;border-radius:6px;">Déconnexion</a>`;
             } else {
-                area.innerHTML = `<a href="/ui/login" class="btn-login">Se connecter</a>`;
+                area.innerHTML = `<a href="/ui/login?next=/ui/order/${ORDER_ID}" class="btn-login">Se connecter</a>`;
             }
         }
         async function doLogout() {
@@ -570,10 +582,16 @@
                 document.getElementById('cc-expiry').textContent = cc.expiration_month + '/' + cc.expiration_year;
             }
 
-            // Formulaires (seulement si non payée)
+            // Formulaires (seulement si non payée ET connecté)
             if (!order.paid) {
-                document.getElementById('shipping-form-section').style.display = 'block';
-                if (si?.address) document.getElementById('payment-form-section').style.display = 'block';
+                const meRes = await fetch('/me');
+                const meData = await meRes.json();
+                if (meData.user) {
+                    document.getElementById('shipping-form-section').style.display = 'block';
+                    if (si?.address) document.getElementById('payment-form-section').style.display = 'block';
+                } else {
+                    document.getElementById('auth-required-block').style.display = 'block';
+                }
             }
         }
 

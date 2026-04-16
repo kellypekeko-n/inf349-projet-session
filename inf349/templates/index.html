@@ -6,77 +6,346 @@
     <title>INF349 — Boutique</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: sans-serif; max-width: 960px; margin: 40px auto; padding: 0 20px; color: #333; }
-        h1 { margin-bottom: 8px; font-size: 1.8rem; }
-        .subtitle { color: #666; margin-bottom: 32px; }
-        h2 { margin: 32px 0 16px; font-size: 1.2rem; border-bottom: 2px solid #eee; padding-bottom: 8px; }
-        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
-        .product-card {
-            border: 2px solid #eee; border-radius: 10px; padding: 14px;
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f6fbf7;
+            color: #2e2e2e;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── NAVBAR ── */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 15px 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .navbar .logo {
+            font-weight: 700;
+            color: #4caf50;
+            font-size: 1.3rem;
+            letter-spacing: -0.5px;
+        }
+        .navbar nav a {
+            margin: 0 14px;
+            text-decoration: none;
+            color: #555;
+            font-size: 0.95rem;
+            transition: color 0.2s;
+        }
+        .navbar nav a:hover { color: #4caf50; }
+        .navbar .user { color: #6d4c41; font-size: 0.9rem; }
+
+        /* ── PANIER FLOTTANT ── */
+        .cart {
+            position: fixed;
+            top: 74px;
+            right: 24px;
+            background: #4caf50;
+            color: white;
+            padding: 10px 18px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            box-shadow: 0 4px 14px rgba(76,175,80,0.35);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            z-index: 99;
+        }
+        .cart:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(76,175,80,0.4);
+        }
+
+        /* ── CONTAINER ── */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 36px 20px;
+            flex: 1;
+        }
+
+        .page-header { margin-bottom: 28px; }
+        .page-header h1 { font-size: 1.7rem; color: #2e2e2e; margin-bottom: 6px; }
+        .page-header p { color: #777; font-size: 0.95rem; }
+
+        /* ── GRILLE PRODUITS ── */
+        .products {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .product {
+            background: white;
+            border-radius: 14px;
+            padding: 16px;
+            border: 2px solid #eee;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        }
+        .product:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        }
+        .product.selected {
+            border-color: #4caf50;
+            background: #f4fff4;
+        }
+        .product img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .product h3 { font-size: 0.92rem; margin-bottom: 4px; }
+        .product .price {
+            color: #e53935;
+            font-weight: 700;
+            font-size: 1rem;
+            margin: 4px 0;
+        }
+
+        /* ── BADGES STOCK ── */
+        .badge {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge.in  { background: #e8f5e9; color: #2e7d32; }
+        .badge.out { background: #fdecea; color: #c62828; }
+
+        /* ── QTÉ ── */
+        .qty-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .qty-row label { font-size: 0.82rem; color: #777; }
+        .qty-input {
+            width: 60px;
+            padding: 5px 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        /* ── SECTION COMMANDER ── */
+        .order-section {
+            background: white;
+            border-radius: 14px;
+            padding: 24px;
+            border: 1px solid #eee;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .order-section h2 {
+            font-size: 1.1rem;
+            margin-bottom: 14px;
+            color: #2e2e2e;
+        }
+
+        /* ── SUMMARY BAR ── */
+        .summary-bar {
+            display: none;
+            align-items: center;
+            gap: 20px;
+            background: #f0faf0;
+            border: 1px solid #c8e6c9;
+            border-radius: 8px;
+            padding: 10px 16px;
+            margin-bottom: 14px;
+            font-size: 0.9rem;
+            color: #2e7d32;
+            flex-wrap: wrap;
+        }
+        .summary-bar strong { font-weight: 700; }
+
+        /* ── BOUTONS ── */
+        .btn {
+            background: #66bb6a;
+            border: none;
+            padding: 11px 26px;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn:hover   { background: #4caf50; }
+        .btn:active  { transform: scale(0.97); }
+        .btn:disabled { background: #bbb; cursor: not-allowed; }
+        .btn-secondary { background: #607d8b; }
+        .btn-secondary:hover { background: #455a64; }
+
+        /* ── FIND ROW ── */
+        .find-row { display: flex; gap: 10px; align-items: center; }
+        .find-row input {
+            padding: 9px 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            width: 170px;
+            outline: none;
             transition: border-color 0.2s;
         }
-        .product-card.selected { border-color: #3a6; background: #f4fff4; }
-        .product-card img { width: 100%; height: 110px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; }
-        .product-card h3 { font-size: 0.9rem; margin-bottom: 4px; }
-        .product-card .price { color: #c33; font-weight: bold; font-size: 0.95rem; margin: 4px 0; }
-        .product-card .stock { font-size: 0.75rem; color: #888; }
-        .product-card .stock.out { color: #c33; }
-        .qty-row { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
-        .qty-row label { font-size: 0.85rem; color: #555; }
-        .qty-input { width: 60px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
-        .btn {
-            background: #3a6; color: white; border: none;
-            padding: 10px 24px; border-radius: 6px; cursor: pointer;
-            font-size: 1rem; font-weight: bold;
+        .find-row input:focus { border-color: #4caf50; }
+
+        /* ── MESSAGES ── */
+        .message {
+            margin-top: 12px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.88rem;
         }
-        .btn:hover { background: #2b5; }
-        .btn:disabled { background: #aaa; cursor: not-allowed; }
-        .btn-secondary { background: #555; }
-        .btn-secondary:hover { background: #333; }
-        .message { margin-top: 14px; padding: 12px 16px; border-radius: 6px; font-size: 0.95rem; }
-        .message.success { background: #dfd; border: 1px solid #9d9; color: #060; }
-        .message.error { background: #fdd; border: 1px solid #f99; color: #600; }
-        .find-row { display: flex; gap: 8px; align-items: center; }
-        .find-row input {
-            padding: 9px 12px; border: 1px solid #ccc; border-radius: 6px;
-            font-size: 1rem; width: 160px;
+        .message.success { background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32; }
+        .message.error   { background: #fdecea; border: 1px solid #ef9a9a; color: #c62828; }
+
+        #loading { color: #aaa; font-style: italic; padding: 20px 0; }
+
+        /* ── TOAST ── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #323232;
+            color: white;
+            padding: 12px 22px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+            transition: opacity 0.3s;
+            z-index: 999;
         }
-        #loading { color: #888; font-style: italic; padding: 12px 0; }
-        .summary-bar {
-            background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px;
-            padding: 12px 16px; margin-bottom: 12px;
-            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        .toast.green { background: #43a047; }
+        .toast.red   { background: #e53935; }
+        .toast.hidden { opacity: 0; pointer-events: none; }
+
+        /* ── FOOTER ── */
+        footer {
+            background: white;
+            padding: 18px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #eee;
+            color: #999;
+            font-size: 0.85rem;
+            flex-wrap: wrap;
+            gap: 8px;
         }
-        .summary-bar span { font-size: 0.9rem; color: #555; }
-        .summary-bar strong { color: #333; }
+        footer a {
+            margin-left: 14px;
+            text-decoration: none;
+            color: #999;
+            transition: color 0.2s;
+        }
+        footer a:hover { color: #4caf50; }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 768px) {
+            .navbar { flex-direction: column; gap: 10px; padding: 12px 20px; }
+            .products { grid-template-columns: 1fr 1fr; }
+            .cart { top: auto; bottom: 72px; right: 16px; }
+            footer { flex-direction: column; text-align: center; }
+        }
+        @media (max-width: 480px) {
+            .products { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
-    <h1>INF349 — Boutique en ligne</h1>
-    <p class="subtitle">Sélectionnez les produits et les quantités, puis créez votre commande.</p>
 
-    <h2>Produits disponibles</h2>
-    <div id="loading">Chargement des produits...</div>
-    <div id="products-list" class="product-grid"></div>
+    <!-- NAVBAR -->
+    <header class="navbar">
+        <div class="logo">🌿 INF349</div>
+        <nav>
+            <a href="/ui">Boutique</a>
+            <a href="#find-section">Mes commandes</a>
+        </nav>
+        <div class="user">👤 Kelly</div>
+    </header>
 
-    <h2>Créer une commande</h2>
-    <div id="summary-bar" class="summary-bar" style="display:none;">
-        <span>Produits sélectionnés : <strong id="summary-count">0</strong></span>
-        <span>Total estimé : <strong id="summary-total">0.00 $</strong></span>
+    <!-- PANIER FLOTTANT -->
+    <div class="cart" id="cart-badge" onclick="scrollToOrder()">
+        🛒 <span id="cart-count">0</span>
     </div>
-    <button id="create-order-btn" class="btn" disabled>Créer la commande</button>
-    <div id="create-message"></div>
 
-    <h2>Accéder à une commande existante</h2>
-    <div class="find-row">
-        <input type="number" id="order-id-input" placeholder="Numéro de commande" min="1">
-        <button id="find-order-btn" class="btn btn-secondary">Afficher</button>
+    <!-- CONTENU -->
+    <div class="container">
+
+        <div class="page-header">
+            <h1>Boutique en ligne</h1>
+            <p>Sélectionnez vos produits et passez commande en quelques clics.</p>
+        </div>
+
+        <!-- PRODUITS -->
+        <div id="loading">Chargement des produits...</div>
+        <div class="products" id="products-list"></div>
+
+        <!-- COMMANDER -->
+        <div class="order-section" id="order-section">
+            <h2>🛒 Votre commande</h2>
+            <div class="summary-bar" id="summary-bar">
+                Articles : <strong id="summary-count">0</strong>
+                &nbsp;|&nbsp; Total estimé : <strong id="summary-total">0.00 $</strong>
+            </div>
+            <button class="btn" id="create-order-btn" disabled onclick="createOrder()">
+                Passer la commande
+            </button>
+            <div id="create-message"></div>
+        </div>
+
+        <!-- RECHERCHER UNE COMMANDE -->
+        <div class="order-section" id="find-section">
+            <h2>🔍 Accéder à une commande</h2>
+            <div class="find-row">
+                <input type="number" id="order-id-input" placeholder="Numéro de commande" min="1">
+                <button class="btn btn-secondary" onclick="findOrder()">Afficher</button>
+            </div>
+            <div id="find-message"></div>
+        </div>
+
     </div>
-    <div id="find-message"></div>
+
+    <!-- TOAST -->
+    <div class="toast hidden" id="toast"></div>
+
+    <!-- FOOTER -->
+    <footer>
+        <div>© 2026 INF349 — Tous droits réservés</div>
+        <div>
+            <a href="#">Confidentialité</a>
+            <a href="#">Conditions</a>
+            <a href="#">Contact</a>
+        </div>
+    </footer>
 
     <script>
         let allProducts = [];
 
+        // ── TOAST ──
+        function showToast(msg, type = '') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast' + (type ? ' ' + type : '');
+            setTimeout(() => t.classList.add('hidden'), 3000);
+        }
+
+        // ── CHARGER PRODUITS ──
         async function loadProducts() {
             try {
                 const res = await fetch('/');
@@ -84,7 +353,7 @@
                 allProducts = data.products || [];
                 renderProducts();
             } catch (e) {
-                document.getElementById('loading').textContent = 'Erreur lors du chargement des produits.';
+                document.getElementById('loading').textContent = 'Erreur lors du chargement.';
             }
         }
 
@@ -92,17 +361,19 @@
             document.getElementById('loading').style.display = 'none';
             const list = document.getElementById('products-list');
 
-            if (allProducts.length === 0) {
-                list.innerHTML = '<p style="color:#888">Aucun produit disponible.</p>';
+            if (!allProducts.length) {
+                list.innerHTML = '<p style="color:#aaa">Aucun produit disponible.</p>';
                 return;
             }
 
             list.innerHTML = allProducts.map(p => `
-                <div class="product-card" id="card-${p.id}">
+                <div class="product" id="card-${p.id}">
                     ${p.image ? `<img src="${p.image}" alt="${p.name}" onerror="this.style.display='none'">` : ''}
                     <h3>${p.name}</h3>
                     <div class="price">${parseFloat(p.price).toFixed(2)} $</div>
-                    <div class="stock ${p.in_stock ? '' : 'out'}">${p.in_stock ? '✓ En stock' : '✗ Hors stock'}</div>
+                    <span class="badge ${p.in_stock ? 'in' : 'out'}">
+                        ${p.in_stock ? '✔ En stock' : '✖ Hors stock'}
+                    </span>
                     ${p.in_stock ? `
                     <div class="qty-row">
                         <label for="qty-${p.id}">Qté :</label>
@@ -110,8 +381,8 @@
                                value="0" min="0" max="99"
                                data-product-id="${p.id}"
                                data-product-price="${p.price}"
-                               onchange="updateSummary()">
-                    </div>` : '<div style="margin-top:8px;font-size:0.75rem;color:#aaa">Non commandable</div>'}
+                               oninput="updateSummary()">
+                    </div>` : ''}
                 </div>
             `).join('');
 
@@ -120,27 +391,29 @@
 
         function updateSummary() {
             const inputs = document.querySelectorAll('.qty-input');
-            let count = 0;
-            let total = 0;
+            let count = 0, total = 0;
 
             inputs.forEach(i => {
                 const qty = parseInt(i.value) || 0;
+                const card = document.getElementById(`card-${i.dataset.productId}`);
                 if (qty > 0) {
                     count += qty;
                     total += qty * parseFloat(i.dataset.productPrice);
-                    document.getElementById(`card-${i.dataset.productId}`).classList.add('selected');
+                    card.classList.add('selected');
                 } else {
-                    document.getElementById(`card-${i.dataset.productId}`).classList.remove('selected');
+                    card.classList.remove('selected');
                 }
             });
 
-            const hasItems = count > 0;
-            document.getElementById('create-order-btn').disabled = !hasItems;
-            document.getElementById('summary-bar').style.display = hasItems ? 'flex' : 'none';
+            document.getElementById('cart-count').textContent = count;
+            document.getElementById('create-order-btn').disabled = count === 0;
+            const bar = document.getElementById('summary-bar');
+            bar.style.display = count > 0 ? 'flex' : 'none';
             document.getElementById('summary-count').textContent = count;
             document.getElementById('summary-total').textContent = total.toFixed(2) + ' $';
         }
 
+        // ── CRÉER COMMANDE ──
         async function createOrder() {
             const inputs = document.querySelectorAll('.qty-input');
             const products = [];
@@ -149,13 +422,11 @@
                 if (qty > 0) products.push({ id: parseInt(i.dataset.productId), quantity: qty });
             });
 
-            if (products.length === 0) {
-                showMessage('create-message', 'Veuillez sélectionner au moins un produit.', 'error');
-                return;
-            }
+            if (!products.length) { showToast('Sélectionnez au moins un produit.', 'red'); return; }
 
-            document.getElementById('create-order-btn').disabled = true;
-            document.getElementById('create-order-btn').textContent = 'Création en cours...';
+            const btn = document.getElementById('create-order-btn');
+            btn.disabled = true;
+            btn.textContent = 'Création en cours...';
 
             try {
                 const res = await fetch('/order', {
@@ -167,38 +438,42 @@
 
                 const match = res.url.match(/\/order\/(\d+)/);
                 if (match) {
-                    window.location.href = `/ui/order/${match[1]}`;
+                    showToast('Commande créée !', 'green');
+                    setTimeout(() => window.location.href = `/ui/order/${match[1]}`, 600);
                 } else {
-                    showMessage('create-message', 'Commande créée, mais impossible de récupérer l\'ID de commande.', 'error');
-                    document.getElementById('create-order-btn').disabled = false;
-                    document.getElementById('create-order-btn').textContent = 'Créer la commande';
+                    showMsg('create-message', 'Impossible de récupérer l\'ID de commande.', 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'Passer la commande';
                 }
             } catch (e) {
-                showMessage('create-message', 'Erreur réseau : ' + e.message, 'error');
-                document.getElementById('create-order-btn').disabled = false;
-                document.getElementById('create-order-btn').textContent = 'Créer la commande';
+                showMsg('create-message', 'Erreur réseau : ' + e.message, 'error');
+                btn.disabled = false;
+                btn.textContent = 'Passer la commande';
             }
         }
 
-        function showMessage(id, text, type) {
+        // ── TROUVER COMMANDE ──
+        function findOrder() {
+            const id = parseInt(document.getElementById('order-id-input').value);
+            if (!id || id < 1) {
+                showMsg('find-message', 'Entrez un numéro valide.', 'error');
+                return;
+            }
+            window.location.href = `/ui/order/${id}`;
+        }
+
+        function scrollToOrder() {
+            document.getElementById('order-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function showMsg(id, text, type) {
             const el = document.getElementById(id);
             el.className = 'message ' + type;
             el.textContent = text;
         }
 
-        document.getElementById('create-order-btn').addEventListener('click', createOrder);
-
-        document.getElementById('find-order-btn').addEventListener('click', () => {
-            const id = document.getElementById('order-id-input').value.trim();
-            if (!id || isNaN(parseInt(id))) {
-                showMessage('find-message', 'Veuillez entrer un numéro de commande valide.', 'error');
-                return;
-            }
-            window.location.href = `/ui/order/${parseInt(id)}`;
-        });
-
         document.getElementById('order-id-input').addEventListener('keydown', e => {
-            if (e.key === 'Enter') document.getElementById('find-order-btn').click();
+            if (e.key === 'Enter') findOrder();
         });
 
         loadProducts();

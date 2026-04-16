@@ -8,8 +8,8 @@ def create_app(test_config=None):
     app.config.from_mapping(
         SECRET_KEY="dev",
         REDIS_URL=os.environ.get("REDIS_URL", "redis://localhost"),
-        PRODUCT_SERVICE_URL="http://dimensweb.uqac.ca/~jgnault/shops/products/",
-        PAYMENT_SERVICE_URL="http://dimensweb.uqac.ca/~jgnault/shops/pay",
+        PRODUCT_SERVICE_URL="https://dimensweb.uqac.ca/~jgnault/shops/products/",
+        PAYMENT_SERVICE_URL="https://dimensweb.uqac.ca/~jgnault/shops/pay",
     )
 
     if test_config is None:

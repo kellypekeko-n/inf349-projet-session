@@ -24,7 +24,7 @@ def main():
     with app.app_context():
         try:
             # Initialiser la base de données
-            print("📦 Initialisation de la base de données...")
+            print(" Initialisation de la base de données...")
             initialize_db(db)
             
             # Récupérer les produits depuis le service distant

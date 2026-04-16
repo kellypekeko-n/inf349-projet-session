@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INF349 — Boutique</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: sans-serif; max-width: 960px; margin: 40px auto; padding: 0 20px; color: #333; }
+        h1 { margin-bottom: 8px; font-size: 1.8rem; }
+        .subtitle { color: #666; margin-bottom: 32px; }
+        h2 { margin: 32px 0 16px; font-size: 1.2rem; border-bottom: 2px solid #eee; padding-bottom: 8px; }
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+        .product-card {
+            border: 2px solid #eee; border-radius: 10px; padding: 14px;
+            transition: border-color 0.2s;
+        }
+        .product-card.selected { border-color: #3a6; background: #f4fff4; }
+        .product-card img { width: 100%; height: 110px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; }
+        .product-card h3 { font-size: 0.9rem; margin-bottom: 4px; }
+        .product-card .price { color: #c33; font-weight: bold; font-size: 0.95rem; margin: 4px 0; }
+        .product-card .stock { font-size: 0.75rem; color: #888; }
+        .product-card .stock.out { color: #c33; }
+        .qty-row { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+        .qty-row label { font-size: 0.85rem; color: #555; }
+        .qty-input { width: 60px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
+        .btn {
+            background: #3a6; color: white; border: none;
+            padding: 10px 24px; border-radius: 6px; cursor: pointer;
+            font-size: 1rem; font-weight: bold;
+        }
+        .btn:hover { background: #2b5; }
+        .btn:disabled { background: #aaa; cursor: not-allowed; }
+        .btn-secondary { background: #555; }
+        .btn-secondary:hover { background: #333; }
+        .message { margin-top: 14px; padding: 12px 16px; border-radius: 6px; font-size: 0.95rem; }
+        .message.success { background: #dfd; border: 1px solid #9d9; color: #060; }
+        .message.error { background: #fdd; border: 1px solid #f99; color: #600; }
+        .find-row { display: flex; gap: 8px; align-items: center; }
+        .find-row input {
+            padding: 9px 12px; border: 1px solid #ccc; border-radius: 6px;
+            font-size: 1rem; width: 160px;
+        }
+        #loading { color: #888; font-style: italic; padding: 12px 0; }
+        .summary-bar {
+            background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px;
+            padding: 12px 16px; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        }
+        .summary-bar span { font-size: 0.9rem; color: #555; }
+        .summary-bar strong { color: #333; }
+    </style>
+</head>
+<body>
+    <h1>INF349 — Boutique en ligne</h1>
+    <p class="subtitle">Sélectionnez les produits et les quantités, puis créez votre commande.</p>
+
+    <h2>Produits disponibles</h2>
+    <div id="loading">Chargement des produits...</div>
+    <div id="products-list" class="product-grid"></div>
+
+    <h2>Créer une commande</h2>
+    <div id="summary-bar" class="summary-bar" style="display:none;">
+        <span>Produits sélectionnés : <strong id="summary-count">0</strong></span>
+        <span>Total estimé : <strong id="summary-total">0.00 $</strong></span>
+    </div>
+    <button id="create-order-btn" class="btn" disabled>Créer la commande</button>
+    <div id="create-message"></div>
+
+    <h2>Accéder à une commande existante</h2>
+    <div class="find-row">
+        <input type="number" id="order-id-input" placeholder="Numéro de commande" min="1">
+        <button id="find-order-btn" class="btn btn-secondary">Afficher</button>
+    </div>
+    <div id="find-message"></div>
+
+    <script>
+        let allProducts = [];
+
+        async function loadProducts() {
+            try {
+                const res = await fetch('/');
+                const data = await res.json();
+                allProducts = data.products || [];
+                renderProducts();
+            } catch (e) {
+                document.getElementById('loading').textContent = 'Erreur lors du chargement des produits.';
+            }
+        }
+
+        function renderProducts() {
+            document.getElementById('loading').style.display = 'none';
+            const list = document.getElementById('products-list');
+
+            if (allProducts.length === 0) {
+                list.innerHTML = '<p style="color:#888">Aucun produit disponible.</p>';
+                return;
+            }
+
+            list.innerHTML = allProducts.map(p => `
+                <div class="product-card" id="card-${p.id}">
+                    ${p.image ? `<img src="${p.image}" alt="${p.name}" onerror="this.style.display='none'">` : ''}
+                    <h3>${p.name}</h3>
+                    <div class="price">${parseFloat(p.price).toFixed(2)} $</div>
+                    <div class="stock ${p.in_stock ? '' : 'out'}">${p.in_stock ? '✓ En stock' : '✗ Hors stock'}</div>
+                    ${p.in_stock ? `
+                    <div class="qty-row">
+                        <label for="qty-${p.id}">Qté :</label>
+                        <input type="number" id="qty-${p.id}" class="qty-input"
+                               value="0" min="0" max="99"
+                               data-product-id="${p.id}"
+                               data-product-price="${p.price}"
+                               onchange="updateSummary()">
+                    </div>` : '<div style="margin-top:8px;font-size:0.75rem;color:#aaa">Non commandable</div>'}
+                </div>
+            `).join('');
+
+            updateSummary();
+        }
+
+        function updateSummary() {
+            const inputs = document.querySelectorAll('.qty-input');
+            let count = 0;
+            let total = 0;
+
+            inputs.forEach(i => {
+                const qty = parseInt(i.value) || 0;
+                if (qty > 0) {
+                    count += qty;
+                    total += qty * parseFloat(i.dataset.productPrice);
+                    document.getElementById(`card-${i.dataset.productId}`).classList.add('selected');
+                } else {
+                    document.getElementById(`card-${i.dataset.productId}`).classList.remove('selected');
+                }
+            });
+
+            const hasItems = count > 0;
+            document.getElementById('create-order-btn').disabled = !hasItems;
+            document.getElementById('summary-bar').style.display = hasItems ? 'flex' : 'none';
+            document.getElementById('summary-count').textContent = count;
+            document.getElementById('summary-total').textContent = total.toFixed(2) + ' $';
+        }
+
+        async function createOrder() {
+            const inputs = document.querySelectorAll('.qty-input');
+            const products = [];
+            inputs.forEach(i => {
+                const qty = parseInt(i.value) || 0;
+                if (qty > 0) products.push({ id: parseInt(i.dataset.productId), quantity: qty });
+            });
+
+            if (products.length === 0) {
+                showMessage('create-message', 'Veuillez sélectionner au moins un produit.', 'error');
+                return;
+            }
+
+            document.getElementById('create-order-btn').disabled = true;
+            document.getElementById('create-order-btn').textContent = 'Création en cours...';
+
+            try {
+                const res = await fetch('/order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ products }),
+                    redirect: 'follow'
+                });
+
+                const match = res.url.match(/\/order\/(\d+)/);
+                if (match) {
+                    window.location.href = `/ui/order/${match[1]}`;
+                } else {
+                    showMessage('create-message', 'Commande créée, mais impossible de récupérer l\'ID de commande.', 'error');
+                    document.getElementById('create-order-btn').disabled = false;
+                    document.getElementById('create-order-btn').textContent = 'Créer la commande';
+                }
+            } catch (e) {
+                showMessage('create-message', 'Erreur réseau : ' + e.message, 'error');
+                document.getElementById('create-order-btn').disabled = false;
+                document.getElementById('create-order-btn').textContent = 'Créer la commande';
+            }
+        }
+
+        function showMessage(id, text, type) {
+            const el = document.getElementById(id);
+            el.className = 'message ' + type;
+            el.textContent = text;
+        }
+
+        document.getElementById('create-order-btn').addEventListener('click', createOrder);
+
+        document.getElementById('find-order-btn').addEventListener('click', () => {
+            const id = document.getElementById('order-id-input').value.trim();
+            if (!id || isNaN(parseInt(id))) {
+                showMessage('find-message', 'Veuillez entrer un numéro de commande valide.', 'error');
+                return;
+            }
+            window.location.href = `/ui/order/${parseInt(id)}`;
+        });
+
+        document.getElementById('order-id-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') document.getElementById('find-order-btn').click();
+        });
+
+        loadProducts();
+    </script>
+</body>
+</html>

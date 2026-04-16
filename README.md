@@ -1,228 +1,214 @@
-# INF349 - Projet de Session - Application Web de Commandes
-#NOM :MAPOUE PEKEKO KELLY NOELLE 
+# INF349 — Projet de Session Flask (Remise 2)
+
+**Nom :** KELLY NOELLE MAPOUE PEKEKO  
+**Code permanent :** MAPK22510200
+
+---
 
 ## Description
 
-Ce projet est une application Web Flask . L'application gère des commandes Internet avec une API REST complète et des services de paiement externes.
+Application Flask REST pour la gestion de commandes Internet avec paiement en arrière-plan.  
+Développée avec Python 3.12, Flask 2.3.3, Peewee 3.16.2, PostgreSQL, Redis et RQ.
+
+---
 
 ## Fonctionnalités
 
-- **Gestion des produits** : Récupération et stockage local des produits depuis un service distant
-- **Création de commandes** : API pour créer des commandes avec validation d'inventaire
-- **Calculs automatiques** : Prix d'expédition et taxes selon la province
-- **Intégration paiement** : Communication avec service de paiement distant
-- **Gestion d'erreurs** : Validation complète et messages d'erreur standards
+### API REST
+- `GET /` — Liste de tous les produits
+- `POST /order` — Création de commande (un ou plusieurs produits)
+- `GET /order/<id>` — Consultation de commande (avec cache Redis)
+- `PUT /order/<id>` — Mise à jour des informations client OU paiement (séparés)
 
-## Architecture
+### Interface utilisateur HTML
+- `GET /ui` — Page boutique : liste des produits et création de commande
+- `GET /ui/order/<id>` — Page commande : détails, formulaire livraison, formulaire paiement
 
-### Structure du Projet
+### Résilience
+- Les commandes payées sont mises en cache dans Redis
+- `GET /order/<id>` vérifie Redis en premier et fonctionne sans PostgreSQL pour les commandes mises en cache
 
-```
-inf349/
-├── __init__.py          # Initialisation Flask et configuration
-├── config.py            # Configuration production
-├── models.py            # Modèles Peewee (ORM)
-├── routes.py            # Routes API REST
-├── services.py          # Logique métier
-├── utils.py             # Utilitaires et validation
-├── errors.py            # Gestion d'erreurs centralisée
-├── commands.py          # Commandes CLI Flask
-└── tests/               # Tests complets
-    ├── __init__.py
-    ├── conftest.py      # Configuration tests
-    ├── test_products.py # Tests produits
-    ├── test_orders.py   # Tests commandes
-    ├── test_payment.py  # Tests paiements
-    └── test_utils.py    # Tests utilitaires
-```
+### Calculs automatiques
+- Frais d'expédition : 5 $ (≤500 g), 10 $ (500 g–2 kg), 25 $ (≥2 kg)
+- Taxes provinciales : QC 15 %, ON 13 %, AB 5 %, BC 12 %, NS 14 %
 
-### Modèles de Données
+---
 
-- **Product** : Informations des produits
-- **Order** : Commandes avec calculs automatiques
-- **ShippingInformation** : Informations de livraison
-- **CreditCard** : Cartes de crédit (masquées)
-- **Transaction** : Transactions de paiement
+## Prérequis
 
-### Services Externes
+- Python 3.6+
+- PostgreSQL 12
+- Redis 5
+- Docker (optionnel)
 
-- **Service Produits** : `http://dimensweb.uqac.ca/~jgnault/shops/products/`
-- **Service Paiement** : `http://dimensweb.uqac.ca/~jgnault/shops/pay/`
+---
+
+## Variables d'environnement
+
+| Variable       | Description                         | Exemple                  |
+|----------------|-------------------------------------|--------------------------|
+| `DB_HOST`      | Hôte PostgreSQL                     | `localhost`              |
+| `DB_USER`      | Nom d'utilisateur PostgreSQL        | `user`                   |
+| `DB_PASSWORD`  | Mot de passe PostgreSQL             | `pass`                   |
+| `DB_PORT`      | Port PostgreSQL                     | `5432`                   |
+| `DB_NAME`      | Nom de la base de données           | `api8inf349`             |
+| `REDIS_URL`    | URL de connexion Redis              | `redis://localhost`      |
+
+---
 
 ## Installation
 
-### Prérequis
+```bash
+pip install -r requirements.txt
+```
 
-- Python 3.6+ (recommandé: 3.11)
-- pip (gestionnaire de paquets Python)
+---
 
-### Étapes d'Installation
+## Initialisation de la base de données
 
-1. **Cloner le projet**
-   ```bash
-   git clone <repository-url>
-   cd Project_tech_web1
-   ```
+**Windows CMD :**
+```cmd
+SET FLASK_APP=api8inf349& SET DB_HOST=localhost& SET DB_USER=user& SET DB_PASSWORD=pass& SET DB_PORT=5432& SET DB_NAME=api8inf349& SET REDIS_URL=redis://localhost& flask init-db
+```
 
-2. **Créer environnement virtuel**
-   ```bash
-   python -m venv venv
-   
-   # Windows
-   venv\Scripts\activate
-   
-   # Linux/Mac
-   source venv/bin/activate
-   ```
+**Windows PowerShell :**
+```powershell
+$env:FLASK_APP="api8inf349"; $env:DB_HOST="localhost"; $env:DB_USER="user"; $env:DB_PASSWORD="pass"; $env:DB_PORT="5432"; $env:DB_NAME="api8inf349"; $env:REDIS_URL="redis://localhost"; flask init-db
+```
 
-3. **Installer les dépendances**
-   ```bash
-   pip install -r requirements.txt
-   ```
+**Linux / macOS :**
+```bash
+FLASK_APP=api8inf349 DB_HOST=localhost DB_USER=user DB_PASSWORD=pass DB_PORT=5432 DB_NAME=api8inf349 REDIS_URL=redis://localhost flask init-db
+```
 
-4. **Initialiser la base de données**
-   ```bash
-   # Windows
-   set FLASK_DEBUG=True
-   set FLASK_APP=inf349
-   flask init-db
-   
-   # Linux/Mac
-   export FLASK_DEBUG=True
-   export FLASK_APP=inf349
-   flask init-db
-   ```
+> Cette commande crée les tables et récupère les produits depuis le service distant.
 
-## Utilisation
+---
 
-### Démarrer l'Application
+## Démarrage de l'application
+
+**Windows CMD :**
+```cmd
+SET FLASK_APP=api8inf349& SET DB_HOST=localhost& SET DB_USER=user& SET DB_PASSWORD=pass& SET DB_PORT=5432& SET DB_NAME=api8inf349& SET REDIS_URL=redis://localhost& flask run
+```
+
+**Windows PowerShell :**
+```powershell
+$env:FLASK_APP="api8inf349"; $env:DB_HOST="localhost"; $env:DB_USER="user"; $env:DB_PASSWORD="pass"; $env:DB_PORT="5432"; $env:DB_NAME="api8inf349"; $env:REDIS_URL="redis://localhost"; flask run
+```
+
+**Linux / macOS :**
+```bash
+FLASK_APP=api8inf349 DB_HOST=localhost DB_USER=user DB_PASSWORD=pass DB_PORT=5432 DB_NAME=api8inf349 REDIS_URL=redis://localhost flask run
+```
+
+L'application sera accessible sur : http://localhost:5000  
+L'interface HTML sera accessible sur : http://localhost:5000/ui
+
+---
+
+## Démarrage du worker RQ
+
+Dans un terminal séparé :
+
+**Windows CMD :**
+```cmd
+SET FLASK_APP=api8inf349& SET DB_HOST=localhost& SET DB_USER=user& SET DB_PASSWORD=pass& SET DB_PORT=5432& SET DB_NAME=api8inf349& SET REDIS_URL=redis://localhost& flask worker
+```
+
+**Windows PowerShell :**
+```powershell
+$env:FLASK_APP="api8inf349"; $env:DB_HOST="localhost"; $env:DB_USER="user"; $env:DB_PASSWORD="pass"; $env:DB_PORT="5432"; $env:DB_NAME="api8inf349"; $env:REDIS_URL="redis://localhost"; flask worker
+```
+
+**Linux / macOS :**
+```bash
+FLASK_APP=api8inf349 DB_HOST=localhost DB_USER=user DB_PASSWORD=pass DB_PORT=5432 DB_NAME=api8inf349 REDIS_URL=redis://localhost flask worker
+```
+
+---
+
+## Docker
+
+### Lancer les services PostgreSQL et Redis
 
 ```bash
-# Windows
-set FLASK_DEBUG=True
-set FLASK_APP=inf349
-flask run
-
-# Linux/Mac
-export FLASK_DEBUG=True
-export FLASK_APP=inf349
-flask run
+docker-compose up -d
 ```
 
-L'application sera accessible sur `http://localhost:5000`
+Cela démarre :
+- PostgreSQL 12 sur le port 5432 (avec volume persistant)
+- Redis 5 sur le port 6379
 
-### API Endpoints
+### Construire l'image de l'application
 
-#### GET /
-Retourne la liste complète des produits
-
-**Response:**
-```json
-{
-  "products": [
-    {
-      "id": 1,
-      "name": "Brown eggs",
-      "description": "Raw organic brown eggs in a basket",
-      "price": 28.1,
-      "in_stock": true,
-      "weight": 400,
-      "image": "0.jpg"
-    }
-  ]
-}
+```bash
+docker build -t api8inf349 .
 ```
 
-#### POST /order
-Crée une nouvelle commande
+### Lancer l'application dans Docker
 
-**Request:**
-```json
-{
-  "product": {
-    "id": 1,
-    "quantity": 2
-  }
-}
+```bash
+docker run -e REDIS_URL=redis://host.docker.internal \
+           -e DB_HOST=host.docker.internal \
+           -e DB_USER=user \
+           -e DB_PASSWORD=pass \
+           -e DB_PORT=5432 \
+           -e DB_NAME=api8inf349 \
+           -p 5000:5000 \
+           api8inf349
 ```
 
-**Response:** `302 Found` avec header `Location: /order/<order_id>`
+> Utiliser `host.docker.internal` pour communiquer avec PostgreSQL/Redis lancés via docker-compose depuis un conteneur.
 
-#### GET /order/<id>
-Retourne les détails d'une commande
+---
 
-**Response:**
-```json
-{
-  "order": {
-    "id": 1,
-    "total_price": 2000,
-    "total_price_tax": 2300.00,
-    "email": "client@example.com",
-    "credit_card": {},
-    "shipping_information": {
-      "country": "Canada",
-      "address": "123 rue Principale",
-      "postal_code": "G7X 3Y7",
-      "city": "Chicoutimi",
-      "province": "QC"
-    },
-    "paid": false,
-    "transaction": {},
-    "product": {
-      "id": 1,
-      "quantity": 2
-    },
-    "shipping_price": 500
-  }
-}
+## Structure du projet
+
+```
+inf349/
+├── __init__.py          # Factory Flask
+├── models.py            # Modèles Peewee (PostgreSQL)
+├── routes.py            # Routes API REST (JSON)
+├── ui.py                # Routes interface HTML
+├── services.py          # Logique métier
+├── tasks.py             # Tâches RQ (paiement en arrière-plan)
+├── utils.py             # Validation, calculs, formatage
+├── errors.py            # Gestion centralisée des erreurs
+├── commands.py          # Commandes Flask CLI (init-db, worker)
+└── templates/
+    ├── index.html       # Page boutique (liste produits + création commande)
+    └── order.html       # Page commande (détails + livraison + paiement)
+
+Fichiers racine :
+├── Dockerfile           # Image Docker de l'application
+├── docker-compose.yml   # Services PostgreSQL 12 + Redis 5
+├── requirements.txt     # Dépendances Python
+├── CODES-PERMANENTS     # Code permanent étudiant
+└── README.md
 ```
 
-#### PUT /order/<id>
-Met à jour les informations client ou traite le paiement
+---
 
-**Informations client:**
-```json
-{
-  "order": {
-    "email": "client@example.com",
-    "shipping_information": {
-      "country": "Canada",
-      "address": "123 rue Principale",
-      "postal_code": "G7X 3Y7",
-      "city": "Chicoutimi",
-      "province": "QC"
-    }
-  }
-}
-```
+## Codes d'erreur HTTP
 
-**Paiement:**
-```json
-{
-  "credit_card": {
-    "name": "John Doe",
-    "number": "4242 4242 4242 4242",
-    "expiration_year": 2024,
-    "expiration_month": 9,
-    "cvv": "123"
-  }
-}
-```
+| Code | Signification                                        |
+|------|------------------------------------------------------|
+| 200  | Succès                                               |
+| 202  | Paiement accepté / en cours de traitement            |
+| 302  | Commande créée, redirection vers GET /order/<id>     |
+| 404  | Ressource introuvable                                |
+| 409  | Conflit — commande en cours de paiement              |
+| 422  | Erreur de validation (champs manquants, hors stock…) |
 
-## Calculs
+---
 
-### Prix d'Expédition
+## Codes d'erreur métier
 
-- ≤ 500g : 5$ (500 cents)
-- 500g - 2kg : 10$ (1000 cents)
-- ≥ 2kg : 25$ (2500 cents)
-
-### Taxes par Province
-
-- Québec (QC) : 15%
-- Ontario (ON) : 13%
-- Alberta (AB) : 5%
-- Colombie-Britannique (BC) : 12%
-- Nouvelle-Écosse (NS) : 14%
-
+| Code                    | Signification                             |
+|-------------------------|-------------------------------------------|
+| `missing-fields`        | Champs obligatoires manquants             |
+| `out-of-inventory`      | Produit non disponible en stock           |
+| `already-paid`          | Commande déjà payée                       |
+| `payment-in-progress`   | Paiement déjà en cours                   |
+| `card-declined`         | Carte de crédit refusée par le service    |

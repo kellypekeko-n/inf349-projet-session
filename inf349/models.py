@@ -1,22 +1,45 @@
-import json
+import os
 from datetime import datetime
-from peewee import *
-from . import db
+from peewee import (
+    Model,
+    IntegerField,
+    CharField,
+    TextField,
+    BooleanField,
+    ForeignKeyField,
+    DecimalField,
+    DateTimeField,
+)
+from playhouse.postgres_ext import PostgresqlExtDatabase
 
-class Product(Model):
+db = PostgresqlExtDatabase(
+    os.environ.get("DB_NAME"),
+    host=os.environ.get("DB_HOST"),
+    user=os.environ.get("DB_USER"),
+    password=os.environ.get("DB_PASSWORD"),
+    port=int(os.environ.get("DB_PORT", 5432)),
+)
+
+
+class BaseModel(Model):
+    class Meta:
+        database = db
+
+
+class Product(BaseModel):
     id = IntegerField(primary_key=True)
     name = CharField()
     description = TextField()
-    price = IntegerField()  # Price in cents
+    price = IntegerField()  # en cents
     in_stock = BooleanField(default=True)
-    weight = IntegerField()  # Weight in grams
+    weight = IntegerField()  # en grammes
     image = CharField()
 
     class Meta:
-        database = db
-        table_name = 'products'
+        table_name = "products"
 
-class ShippingInformation(Model):
+
+class ShippingInformation(BaseModel):
     country = CharField()
     address = CharField()
     postal_code = CharField()
@@ -24,10 +47,10 @@ class ShippingInformation(Model):
     province = CharField()
 
     class Meta:
-        database = db
-        table_name = 'shipping_information'
+        table_name = "shipping_information"
 
-class CreditCard(Model):
+
+class CreditCard(BaseModel):
     name = CharField()
     first_digits = CharField()
     last_digits = CharField()
@@ -35,36 +58,52 @@ class CreditCard(Model):
     expiration_month = IntegerField()
 
     class Meta:
-        database = db
-        table_name = 'credit_cards'
+        table_name = "credit_cards"
 
-class Transaction(Model):
+
+class Transaction(BaseModel):
     id = CharField(primary_key=True)
     success = BooleanField()
     amount_charged = IntegerField()
+    error_code = CharField(null=True)
+    error_name = CharField(null=True)
 
     class Meta:
-        database = db
-        table_name = 'transactions'
+        table_name = "transactions"
 
-class Order(Model):
-    product = ForeignKeyField(Product, backref='orders')
-    quantity = IntegerField()
-    total_price = IntegerField()  # Price in cents (product price * quantity)
-    shipping_price = IntegerField()  # Shipping price in cents
-    total_price_tax = DecimalField(decimal_places=2, max_digits=10)  # Price with tax
+
+class Order(BaseModel):
+    total_price = IntegerField()  # prix des produits * quantités
+    shipping_price = IntegerField()  # en cents
+    total_price_tax = DecimalField(max_digits=12, decimal_places=2, default=0)
     email = CharField(null=True)
-    shipping_information = ForeignKeyField(ShippingInformation, null=True, backref='orders')
-    credit_card = ForeignKeyField(CreditCard, null=True, backref='orders')
-    transaction = ForeignKeyField(Transaction, null=True, backref='orders')
+    shipping_information = ForeignKeyField(
+        ShippingInformation, null=True, backref="orders"
+    )
+    credit_card = ForeignKeyField(CreditCard, null=True, backref="orders")
+    transaction = ForeignKeyField(Transaction, null=True, backref="orders")
     paid = BooleanField(default=False)
+    payment_status = CharField(default="pending")
     created_at = DateTimeField(default=datetime.now)
 
     class Meta:
-        database = db
-        table_name = 'orders'
+        table_name = "orders"
+
+
+class OrderItem(BaseModel):
+    order = ForeignKeyField(Order, backref="items", on_delete="CASCADE")
+    product = ForeignKeyField(Product, backref="order_items")
+    quantity = IntegerField()
+
+    class Meta:
+        table_name = "order_items"
+
 
 def initialize_db(database):
-    database.connect()
-    database.create_tables([Product, ShippingInformation, CreditCard, Transaction, Order], safe=True)
-    database.close()
+    if database.is_closed():
+        database.connect()
+
+    database.create_tables(
+        [Product, ShippingInformation, CreditCard, Transaction, Order, OrderItem],
+        safe=True,
+    )

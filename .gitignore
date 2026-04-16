@@ -143,3 +143,6 @@ Thumbs.db
 inf349/instance/database.db
 *.db
 *.sqlite
+
+# Claude Code internal
+.claude/

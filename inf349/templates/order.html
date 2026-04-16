@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INF349 — Commande #{{ order_id }}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: sans-serif; max-width: 760px; margin: 40px auto; padding: 0 20px; color: #333; }
+        .back-link { color: #3a6; text-decoration: none; font-size: 0.9rem; display: inline-block; margin-bottom: 20px; }
+        .back-link:hover { text-decoration: underline; }
+        h1 { margin-bottom: 24px; font-size: 1.7rem; }
+        h2 { margin: 28px 0 14px; font-size: 1.1rem; border-bottom: 2px solid #eee; padding-bottom: 6px; }
+        .status-badge {
+            display: inline-block; padding: 4px 12px; border-radius: 20px;
+            font-size: 0.8rem; font-weight: bold; margin-left: 10px; vertical-align: middle;
+        }
+        .status-paid { background: #dfd; color: #060; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-processing { background: #cce5ff; color: #004085; }
+        .status-failed { background: #fdd; color: #600; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
+        .info-row { display: flex; flex-direction: column; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+        .info-row label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.04em; }
+        .info-row span { font-size: 0.95rem; margin-top: 2px; }
+        .products-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        .products-table th { text-align: left; font-size: 0.8rem; color: #888; border-bottom: 1px solid #ddd; padding: 6px 8px; }
+        .products-table td { padding: 8px; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; color: #555; }
+        .form-group input {
+            width: 100%; padding: 9px 12px; border: 1px solid #ccc;
+            border-radius: 6px; font-size: 0.95rem;
+        }
+        .form-group input:focus { outline: none; border-color: #3a6; box-shadow: 0 0 0 2px rgba(51,170,102,0.15); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .btn {
+            background: #3a6; color: white; border: none;
+            padding: 10px 24px; border-radius: 6px; cursor: pointer;
+            font-size: 1rem; font-weight: bold; margin-top: 6px;
+        }
+        .btn:hover { background: #2b5; }
+        .btn:disabled { background: #aaa; cursor: not-allowed; }
+        .btn-pay { background: #1a6fc4; }
+        .btn-pay:hover { background: #155fa0; }
+        .message { margin-top: 12px; padding: 10px 14px; border-radius: 6px; font-size: 0.9rem; }
+        .message.success { background: #dfd; border: 1px solid #9d9; color: #060; }
+        .message.error { background: #fdd; border: 1px solid #f99; color: #600; }
+        .message.info { background: #cce5ff; border: 1px solid #9dc; color: #004085; }
+        #loading { color: #888; font-style: italic; padding: 12px 0; }
+        .section { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+        .transaction-box {
+            background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px;
+            padding: 14px; margin-top: 8px;
+        }
+        .transaction-box.success { border-color: #9d9; background: #f4fff4; }
+        .transaction-box.failure { border-color: #f99; background: #fff4f4; }
+        .spinner {
+            display: inline-block; width: 16px; height: 16px;
+            border: 2px solid #ccc; border-top-color: #3a6;
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+            vertical-align: middle; margin-right: 6px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <a href="/ui" class="back-link">← Retour à la boutique</a>
+    <h1>
+        Commande <span id="order-title">#{{ order_id }}</span>
+        <span id="status-badge" class="status-badge" style="display:none"></span>
+    </h1>
+
+    <div id="loading">Chargement de la commande...</div>
+    <div id="order-content" style="display:none">
+
+        <!-- Résumé de la commande -->
+        <div class="section">
+            <h2 style="margin-top:0">Résumé</h2>
+            <div class="info-grid">
+                <div class="info-row"><label>ID</label><span id="o-id"></span></div>
+                <div class="info-row"><label>Statut</label><span id="o-paid"></span></div>
+                <div class="info-row"><label>Email</label><span id="o-email"></span></div>
+                <div class="info-row"><label>Prix des produits</label><span id="o-total"></span></div>
+                <div class="info-row"><label>Frais d'expédition</label><span id="o-shipping"></span></div>
+                <div class="info-row"><label>Total avec taxes</label><span id="o-tax"></span></div>
+            </div>
+
+            <h2>Produits commandés</h2>
+            <table class="products-table">
+                <thead><tr><th>ID Produit</th><th>Quantité</th></tr></thead>
+                <tbody id="o-products"></tbody>
+            </table>
+
+            <div id="shipping-display" style="display:none">
+                <h2>Adresse de livraison</h2>
+                <div class="info-grid">
+                    <div class="info-row"><label>Adresse</label><span id="o-address"></span></div>
+                    <div class="info-row"><label>Ville</label><span id="o-city"></span></div>
+                    <div class="info-row"><label>Province</label><span id="o-province"></span></div>
+                    <div class="info-row"><label>Code postal</label><span id="o-postal"></span></div>
+                    <div class="info-row"><label>Pays</label><span id="o-country"></span></div>
+                </div>
+            </div>
+
+            <div id="transaction-display" style="display:none">
+                <h2>Transaction</h2>
+                <div id="transaction-box" class="transaction-box">
+                    <div class="info-grid">
+                        <div class="info-row"><label>ID Transaction</label><span id="t-id"></span></div>
+                        <div class="info-row"><label>Succès</label><span id="t-success"></span></div>
+                        <div class="info-row"><label>Montant chargé</label><span id="t-amount"></span></div>
+                        <div id="t-error-row" class="info-row" style="display:none"><label>Erreur</label><span id="t-error"></span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="credit-card-display" style="display:none">
+                <h2>Carte de crédit</h2>
+                <div class="info-grid">
+                    <div class="info-row"><label>Titulaire</label><span id="cc-name"></span></div>
+                    <div class="info-row"><label>Numéro</label><span id="cc-number"></span></div>
+                    <div class="info-row"><label>Expiration</label><span id="cc-expiry"></span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulaire livraison -->
+        <div id="shipping-form-section" class="section" style="display:none">
+            <h2 style="margin-top:0">Informations de livraison</h2>
+            <form id="shipping-form" onsubmit="submitShipping(event)">
+                <div class="form-group">
+                    <label for="email">Adresse e-mail *</label>
+                    <input type="email" id="email" placeholder="exemple@domaine.com" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="address">Adresse *</label>
+                        <input type="text" id="address" placeholder="201, rue Président-Kennedy" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="city">Ville *</label>
+                        <input type="text" id="city" placeholder="Chicoutimi" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="province">Province *</label>
+                        <input type="text" id="province" placeholder="QC" maxlength="2" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="postal_code">Code postal *</label>
+                        <input type="text" id="postal_code" placeholder="H2X 3Y7" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="country">Pays *</label>
+                    <input type="text" id="country" placeholder="Canada" required>
+                </div>
+                <button type="submit" class="btn" id="shipping-btn">Enregistrer l'adresse</button>
+                <div id="shipping-message"></div>
+            </form>
+        </div>
+
+        <!-- Formulaire paiement -->
+        <div id="payment-form-section" class="section" style="display:none">
+            <h2 style="margin-top:0">Paiement par carte de crédit</h2>
+            <form id="payment-form" onsubmit="submitPayment(event)">
+                <div class="form-group">
+                    <label for="cc-holder">Nom du titulaire *</label>
+                    <input type="text" id="cc-holder" placeholder="John Doe" required>
+                </div>
+                <div class="form-group">
+                    <label for="cc-num">Numéro de carte *</label>
+                    <input type="text" id="cc-num" placeholder="4242 4242 4242 4242" maxlength="19" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cc-month">Mois d'expiration *</label>
+                        <input type="number" id="cc-month" placeholder="9" min="1" max="12" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="cc-year">Année d'expiration *</label>
+                        <input type="number" id="cc-year" placeholder="2026" min="2024" max="2040" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="cc-cvv">CVV *</label>
+                    <input type="text" id="cc-cvv" placeholder="123" maxlength="4" required>
+                </div>
+                <button type="submit" class="btn btn-pay" id="pay-btn">Payer la commande</button>
+                <div id="payment-message"></div>
+            </form>
+        </div>
+
+    </div>
+
+    <div id="error-block" style="display:none">
+        <div class="message error" id="error-text"></div>
+    </div>
+
+    <script>
+        const ORDER_ID = {{ order_id }};
+        let pollTimer = null;
+
+        async function loadOrder() {
+            try {
+                const res = await fetch(`/order/${ORDER_ID}`);
+
+                if (res.status === 202) {
+                    showProcessing();
+                    if (!pollTimer) pollTimer = setInterval(loadOrder, 3000);
+                    return;
+                }
+
+                if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+
+                if (res.status === 404) {
+                    showError('Commande introuvable (ID : ' + ORDER_ID + ').');
+                    return;
+                }
+
+                const data = await res.json();
+                if (data.errors) {
+                    showError(JSON.stringify(data.errors));
+                    return;
+                }
+
+                renderOrder(data.order);
+
+            } catch (e) {
+                showError('Erreur réseau : ' + e.message);
+            }
+        }
+
+        function showProcessing() {
+            document.getElementById('loading').innerHTML =
+                '<span class="spinner"></span> Paiement en cours de traitement... (actualisation automatique)';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('order-content').style.display = 'none';
+
+            setBadge('processing', 'En traitement');
+        }
+
+        function showError(msg) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('order-content').style.display = 'none';
+            document.getElementById('error-block').style.display = 'block';
+            document.getElementById('error-text').textContent = msg;
+        }
+
+        function setBadge(type, label) {
+            const badge = document.getElementById('status-badge');
+            badge.style.display = 'inline-block';
+            badge.className = 'status-badge status-' + type;
+            badge.textContent = label;
+        }
+
+        function fmt(cents) {
+            return (cents / 100).toFixed(2) + ' $';
+        }
+
+        function renderOrder(order) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('order-content').style.display = 'block';
+            document.getElementById('error-block').style.display = 'none';
+
+            // Badge statut
+            if (order.paid) {
+                setBadge('paid', 'Payée');
+            } else if (order.transaction && !order.transaction.success && order.transaction.error && order.transaction.error.code) {
+                setBadge('failed', 'Paiement échoué');
+            } else {
+                setBadge('pending', 'En attente');
+            }
+
+            // Résumé
+            document.getElementById('o-id').textContent = order.id;
+            document.getElementById('o-paid').textContent = order.paid ? 'Payée ✓' : 'Non payée';
+            document.getElementById('o-email').textContent = order.email || '—';
+            document.getElementById('o-total').textContent = fmt(order.total_price);
+            document.getElementById('o-shipping').textContent = fmt(order.shipping_price);
+            document.getElementById('o-tax').textContent = order.total_price_tax !== undefined
+                ? parseFloat(order.total_price_tax).toFixed(2) + ' $'
+                : fmt(order.total_price + order.shipping_price);
+
+            // Produits
+            const tbody = document.getElementById('o-products');
+            tbody.innerHTML = (order.products || []).map(p =>
+                `<tr><td>${p.id}</td><td>${p.quantity}</td></tr>`
+            ).join('');
+
+            // Adresse
+            const si = order.shipping_information;
+            if (si && si.address) {
+                document.getElementById('shipping-display').style.display = 'block';
+                document.getElementById('o-address').textContent = si.address;
+                document.getElementById('o-city').textContent = si.city;
+                document.getElementById('o-province').textContent = si.province;
+                document.getElementById('o-postal').textContent = si.postal_code;
+                document.getElementById('o-country').textContent = si.country;
+
+                // Pré-remplir le formulaire
+                document.getElementById('email').value = order.email || '';
+                document.getElementById('address').value = si.address || '';
+                document.getElementById('city').value = si.city || '';
+                document.getElementById('province').value = si.province || '';
+                document.getElementById('postal_code').value = si.postal_code || '';
+                document.getElementById('country').value = si.country || '';
+            }
+
+            // Transaction
+            const tx = order.transaction;
+            if (tx && tx.amount_charged !== undefined) {
+                document.getElementById('transaction-display').style.display = 'block';
+                const box = document.getElementById('transaction-box');
+                document.getElementById('t-id').textContent = tx.id || '—';
+                document.getElementById('t-success').textContent = tx.success ? 'Oui ✓' : 'Non ✗';
+                document.getElementById('t-amount').textContent = fmt(tx.amount_charged);
+
+                if (tx.error && tx.error.code) {
+                    document.getElementById('t-error-row').style.display = 'flex';
+                    document.getElementById('t-error').textContent =
+                        `[${tx.error.code}] ${tx.error.name}`;
+                    box.className = 'transaction-box failure';
+                } else if (tx.success) {
+                    box.className = 'transaction-box success';
+                }
+            }
+
+            // Carte de crédit
+            const cc = order.credit_card;
+            if (cc && cc.name) {
+                document.getElementById('credit-card-display').style.display = 'block';
+                document.getElementById('cc-name').textContent = cc.name;
+                document.getElementById('cc-number').textContent =
+                    cc.first_digits + 'xx xxxx xxxx ' + cc.last_digits;
+                document.getElementById('cc-expiry').textContent =
+                    cc.expiration_month + '/' + cc.expiration_year;
+            }
+
+            // Afficher les formulaires seulement si non payée
+            if (!order.paid) {
+                document.getElementById('shipping-form-section').style.display = 'block';
+                document.getElementById('payment-form-section').style.display =
+                    (si && si.address) ? 'block' : 'none';
+            }
+        }
+
+        async function submitShipping(e) {
+            e.preventDefault();
+            const btn = document.getElementById('shipping-btn');
+            btn.disabled = true;
+            btn.textContent = 'Enregistrement...';
+
+            const payload = {
+                order: {
+                    email: document.getElementById('email').value,
+                    shipping_information: {
+                        country: document.getElementById('country').value,
+                        address: document.getElementById('address').value,
+                        postal_code: document.getElementById('postal_code').value,
+                        city: document.getElementById('city').value,
+                        province: document.getElementById('province').value.toUpperCase(),
+                    }
+                }
+            };
+
+            try {
+                const res = await fetch(`/order/${ORDER_ID}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.status === 409) {
+                    showMsg('shipping-message', 'Conflit : la commande est en cours de paiement.', 'error');
+                } else if (res.ok) {
+                    showMsg('shipping-message', 'Adresse enregistrée avec succès.', 'success');
+                    setTimeout(loadOrder, 500);
+                } else {
+                    const data = await res.json();
+                    showMsg('shipping-message', formatErrors(data), 'error');
+                }
+            } catch (err) {
+                showMsg('shipping-message', 'Erreur réseau : ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Enregistrer l'adresse";
+            }
+        }
+
+        async function submitPayment(e) {
+            e.preventDefault();
+            const btn = document.getElementById('pay-btn');
+            btn.disabled = true;
+            btn.textContent = 'Traitement en cours...';
+
+            const payload = {
+                credit_card: {
+                    name: document.getElementById('cc-holder').value,
+                    number: document.getElementById('cc-num').value,
+                    expiration_month: parseInt(document.getElementById('cc-month').value),
+                    expiration_year: parseInt(document.getElementById('cc-year').value),
+                    cvv: document.getElementById('cc-cvv').value,
+                }
+            };
+
+            try {
+                const res = await fetch(`/order/${ORDER_ID}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.status === 202) {
+                    showMsg('payment-message', 'Paiement soumis. Traitement en arrière-plan...', 'info');
+                    document.getElementById('payment-form-section').style.display = 'none';
+                    pollTimer = setInterval(loadOrder, 3000);
+                    showProcessing();
+                } else if (res.status === 409) {
+                    showMsg('payment-message', 'Conflit : la commande est déjà en cours de paiement.', 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'Payer la commande';
+                } else {
+                    const data = await res.json();
+                    showMsg('payment-message', formatErrors(data), 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'Payer la commande';
+                }
+            } catch (err) {
+                showMsg('payment-message', 'Erreur réseau : ' + err.message, 'error');
+                btn.disabled = false;
+                btn.textContent = 'Payer la commande';
+            }
+        }
+
+        function showMsg(id, text, type) {
+            const el = document.getElementById(id);
+            el.className = 'message ' + type;
+            el.textContent = text;
+        }
+
+        function formatErrors(data) {
+            if (data.errors) {
+                return Object.values(data.errors).map(e =>
+                    typeof e === 'object' ? (e.name || JSON.stringify(e)) : e
+                ).join(', ');
+            }
+            return JSON.stringify(data);
+        }
+
+        loadOrder();
+    </script>
+</body>
+</html>

@@ -1,236 +1,177 @@
-from flask import Blueprint, request, jsonify, url_for
-from .models import Product, Order
-from .services import OrderService
-from .utils import validate_order_creation, validate_order_update, validate_payment_data, format_order_response
-from .errors import ValidationError, NotFoundError, BusinessError, handle_validation_error, handle_api_error, handle_not_found_error
-from . import db
+import json
+import os
 
-bp = Blueprint('api', __name__)
+from flask import Blueprint, request, jsonify, url_for, current_app, redirect
+from redis import Redis
 
-@bp.route('/', methods=['GET'])
+from .models import Product
+from .services import OrderService, ProductService
+from .utils import (
+    validate_order_creation,
+    validate_order_update,
+    validate_payment_data,
+    format_order_response,
+    normalize_products_payload,
+)
+from .errors import (
+    ValidationError,
+    NotFoundError,
+    BusinessError,
+    handle_validation_error,
+    handle_not_found_error,
+    handle_business_error,
+)
+
+bp = Blueprint("api", __name__)
+
+
+def get_redis_client():
+    redis_url = os.environ.get("REDIS_URL", "redis://localhost")
+    return Redis.from_url(redis_url)
+
+
+@bp.route("/", methods=["GET"])
 def get_products():
-    """Get all products"""
-    if not db.is_connection_usable():
-        db.connect()
-    
-    try:
-        products = Product.select()
-        
-        products_list = []
-        for product in products:
-            products_list.append({
-                'id': product.id,
-                'name': product.name,
-                'description': product.description,
-                'price': product.price / 100,  # Convert from cents to dollars
-                'in_stock': product.in_stock,
-                'weight': product.weight,
-                'image': product.image
-            })
-        
-        return jsonify({'products': products_list})
-    finally:
-        if not db.is_closed():
-            db.close()
+    # Redirect browsers to the HTML interface
+    if request.accept_mimetypes.best_match(["application/json", "text/html"]) == "text/html":
+        return redirect("/ui")
 
-@bp.route('/order', methods=['POST'])
+    if Product.select().count() == 0:
+        ProductService(current_app.config["PRODUCT_SERVICE_URL"]).fetch_products()
+
+    products_list = []
+    for product in Product.select():
+        products_list.append({
+            "name": product.name,
+            "id": product.id,
+            "in_stock": product.in_stock,
+            "description": product.description,
+            "price": round(product.price / 100, 2),
+            "weight": product.weight,
+            "image": product.image,
+        })
+
+    return jsonify({"products": products_list}), 200
+
+
+@bp.route("/order", methods=["POST"])
 def create_order():
-    """Create a new order"""
-    if not db.is_connection_usable():
-        db.connect()
-    
-    try:
-        data = request.get_json()
-        
-        if not data:
-            raise ValidationError([{
-                'field': 'product',
-                'code': 'missing-fields',
-                'name': 'La création d\'une commande nécessite un produit'
-            }])
-        
-        # Validate input
-        errors = validate_order_creation(data)
-        if errors:
-            raise ValidationError(errors)
-        
-        product_data = data['product']
-        product_id = product_data['id']
-        quantity = product_data['quantity']
-        
-        # Check if product exists and is in stock
-        product = Product.get_by_id(product_id)
-        if not product.in_stock:
-            raise ValidationError([{
-                'field': 'product',
-                'code': 'out-of-inventory',
-                'name': 'Le produit demandé n\'est pas en inventaire'
-            }])
-        
-        # Create order
-        order = OrderService.create_order(product_id, quantity)
-        
-        # Return 302 with location header
-        response = jsonify({})
-        response.status_code = 302
-        response.headers['Location'] = url_for('api.get_order', order_id=order.id)
-        return response
-            
-    except Product.DoesNotExist:
+    data = request.get_json(silent=True)
+
+    if not data:
         raise ValidationError([{
-            'field': 'product',
-            'code': 'missing-fields',
-            'name': 'La création d\'une commande nécessite un produit'
+            "field": "product",
+            "code": "missing-fields",
+            "name": "La création d'une commande nécessite un produit",
         }])
-    except ValueError as e:
-        if "out of inventory" in str(e):
-            raise ValidationError([{
-                'field': 'product',
-                'code': 'out-of-inventory',
-                'name': 'Le produit demandé n\'est pas en inventaire'
-            }])
-        else:
-            raise ValidationError([{
-                'field': 'product',
-                'code': 'missing-fields',
-                'name': 'La création d\'une commande nécessite un produit'
-            }])
-    finally:
-        if not db.is_closed():
-            db.close()
 
-@bp.route('/order/<int:order_id>', methods=['GET'])
-def get_order(order_id):
-    """Get order by ID"""
-    if not db.is_connection_usable():
-        db.connect()
-    
-    try:
-        order = OrderService.get_order(order_id)
-        if not order:
-            raise NotFoundError("Order not found")
-        
-        return jsonify(format_order_response(order))
-    finally:
-        if not db.is_closed():
-            db.close()
+    errors = validate_order_creation(data)
+    if errors:
+        raise ValidationError(errors)
 
-@bp.route('/order/<int:order_id>', methods=['PUT'])
-def update_order(order_id):
-    """Update order with customer information or process payment"""
-    if not db.is_connection_usable():
-        db.connect()
-    
-    try:
-        data = request.get_json()
-        
-        if not data:
-            raise ValidationError([{
-                'field': 'order',
-                'code': 'missing-fields',
-                'name': 'Il manque un ou plusieurs champs qui sont obligatoires'
-            }])
-        
-        order = OrderService.get_order(order_id)
-        if not order:
-            raise NotFoundError("Order not found")
-        
-        # Check if this is a payment request (credit_card present)
-        if 'credit_card' in data:
-            # Payment request
-            if order.paid:
-                raise ValidationError([{
-                    'field': 'order',
-                    'code': 'already-paid',
-                    'name': 'La commande a déjà été payée.'
-                }])
-            
-            if not order.email or not order.shipping_information:
-                raise ValidationError([{
-                    'field': 'order',
-                    'code': 'missing-fields',
-                    'name': 'Les informations du client sont nécessaire avant d\'appliquer une carte de crédit'
-                }])
-            
-            # Validate payment data
-            errors = validate_payment_data(data)
-            if errors:
-                raise ValidationError(errors)
-            
-            try:
-                order = OrderService.process_payment(order_id, data['credit_card'])
-                return jsonify(format_order_response(order))
-            except ValueError as e:
-                error_msg = str(e)
-                if "card-declined" in error_msg or "incorrect-number" in error_msg:
-                    # Parse payment service error
-                    import json
-                    try:
-                        error_data = json.loads(error_msg)
-                        return jsonify(error_data), 422
-                    except:
-                        pass
-                
-                raise ValidationError([{
-                    'field': 'credit_card',
-                    'code': 'card-declined',
-                    'name': 'La carte de crédit a été déclinée.'
-                }])
-        
-        elif 'order' in data:
-            # Customer information update request
-            # Validate that no credit_card is present with order info
-            if 'credit_card' in data:
-                raise ValidationError([{
-                    'field': 'order',
-                    'code': 'missing-fields',
-                    'name': 'Les informations de client et de paiement doivent être envoyées séparément'
-                }])
-            
-            # Validate order update data
-            errors = validate_order_update(data)
-            if errors:
-                raise ValidationError(errors)
-            
-            order_data = data['order']
-            email = order_data['email']
-            shipping_info = order_data['shipping_information']
-            
-            try:
-                order = OrderService.update_order_info(order_id, email, shipping_info)
-                return jsonify(format_order_response(order))
-            except ValueError as e:
-                raise ValidationError([{
-                    'field': 'order',
-                    'code': 'missing-fields',
-                    'name': str(e)
-                }])
-        
-        else:
-            raise ValidationError([{
-                'field': 'order',
-                'code': 'missing-fields',
-                'name': 'Il manque un ou plusieurs champs qui sont obligatoires'
-            }])
-    finally:
-        if not db.is_closed():
-            db.close()
+    products_list = normalize_products_payload(data)
+    order = OrderService.create_order(products_list)
 
-# Error handlers
-@bp.errorhandler(ValidationError)
-def handle_validation_exception(e):
-    return handle_validation_error(e)
-
-@bp.errorhandler(NotFoundError)
-def handle_not_found_exception(e):
-    return handle_not_found_error(e)
-
-@bp.errorhandler(BusinessError)
-def handle_business_exception(e):
-    response = jsonify({'errors': {'order': {'code': e.code, 'name': e.message}}})
-    response.status_code = e.status_code
+    response = jsonify({})
+    response.status_code = 302
+    response.headers["Location"] = url_for("api.get_order", order_id=order.id)
     return response
 
-@bp.errorhandler(Exception)
-def handle_general_exception(e):
-    return handle_api_error(BusinessError("Internal server error", "internal-error", 500))
+
+@bp.route("/order/<int:order_id>", methods=["GET"])
+def get_order(order_id):
+    try:
+        r = get_redis_client()
+        cached = r.get(f"order:{order_id}")
+        if cached:
+            return jsonify(json.loads(cached)), 200
+    except Exception:
+        pass
+
+    order = OrderService.get_order(order_id)
+    if not order:
+        raise NotFoundError(field="order", message="La commande demandée est introuvable.")
+
+    if order.payment_status == "processing":
+        return "", 202
+
+    return jsonify(format_order_response(order)), 200
+
+
+@bp.route("/order/<int:order_id>", methods=["PUT"])
+def update_order(order_id):
+    data = request.get_json(silent=True)
+
+    if not data:
+        raise ValidationError([{
+            "field": "order",
+            "code": "missing-fields",
+            "name": "Il manque un ou plusieurs champs qui sont obligatoires",
+        }])
+
+    order = OrderService.get_order(order_id)
+    if not order:
+        raise NotFoundError(field="order", message="La commande demandée est introuvable.")
+
+    has_order = "order" in data
+    has_credit_card = "credit_card" in data
+
+    if has_order and has_credit_card:
+        raise ValidationError([{
+            "field": "order",
+            "code": "missing-fields",
+            "name": "Les informations de client et de paiement doivent être envoyées séparément",
+        }])
+
+    if not has_order and not has_credit_card:
+        raise ValidationError([{
+            "field": "order",
+            "code": "missing-fields",
+            "name": "Il manque un ou plusieurs champs qui sont obligatoires",
+        }])
+
+    if has_order:
+        if order.payment_status == "processing":
+            return "", 409
+
+        errors = validate_order_update(data)
+        if errors:
+            raise ValidationError(errors)
+
+        order_data = data["order"]
+        updated_order = OrderService.update_order_info(
+            order_id=order_id,
+            email=order_data["email"],
+            shipping_info=order_data["shipping_information"],
+        )
+        return jsonify(format_order_response(updated_order)), 200
+
+    if has_credit_card:
+        if order.payment_status == "processing":
+            return "", 409
+
+        errors = validate_payment_data(data)
+        if errors:
+            raise ValidationError(errors)
+
+        OrderService.enqueue_payment(
+            order_id=order_id,
+            credit_card_info=data["credit_card"],
+            payment_service_url=current_app.config["PAYMENT_SERVICE_URL"],
+        )
+        return "", 202
+
+
+@bp.errorhandler(ValidationError)
+def handle_validation_exception(error):
+    return handle_validation_error(error)
+
+
+@bp.errorhandler(NotFoundError)
+def handle_not_found_exception(error):
+    return handle_not_found_error(error)
+
+
+@bp.errorhandler(BusinessError)
+def handle_business_exception(error):
+    return handle_business_error(error)

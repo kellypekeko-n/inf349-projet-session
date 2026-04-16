@@ -1,37 +1,42 @@
 import os
 from flask import Flask
-from peewee import SqliteDatabase
+from .models import db
 
-db = SqliteDatabase(None)  # Deferred initialization
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
-        SECRET_KEY='dev',
-        DATABASE=os.path.join(app.instance_path, 'database.db'),
+        SECRET_KEY="dev",
+        REDIS_URL=os.environ.get("REDIS_URL", "redis://localhost"),
         PRODUCT_SERVICE_URL="http://dimensweb.uqac.ca/~jgnault/shops/products/",
-        PAYMENT_SERVICE_URL="http://dimensweb.uqac.ca/~jgnault/shops/pay/"
+        PAYMENT_SERVICE_URL="http://dimensweb.uqac.ca/~jgnault/shops/pay",
     )
 
     if test_config is None:
-        app.config.from_pyfile('config.py', silent=True)
+        app.config.from_pyfile("config.py", silent=True)
     else:
         app.config.from_mapping(test_config)
 
-    try:
-        os.makedirs(app.instance_path)
-    except OSError:
-        pass
+    os.makedirs(app.instance_path, exist_ok=True)
 
-    db.init(app.config['DATABASE'])
+    @app.before_request
+    def _connect_db():
+        if db.is_closed():
+            db.connect()
 
-    from . import models
-    models.initialize_db(db)
+    @app.teardown_request
+    def _close_db(exception):
+        if not db.is_closed():
+            db.close()
 
     from . import commands
     app.cli.add_command(commands.init_db_command)
+    app.cli.add_command(commands.worker_command)
 
     from . import routes
     app.register_blueprint(routes.bp)
+
+    from . import ui
+    app.register_blueprint(ui.ui_bp)
 
     return app

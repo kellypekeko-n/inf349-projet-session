@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INF349 — Mes commandes</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f6fbf7;
+            color: #2e2e2e;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .navbar {
+            display: flex; justify-content: space-between; align-items: center;
+            background: white; padding: 15px 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .navbar .logo { font-weight: 700; color: #4caf50; font-size: 1.3rem; }
+        .navbar nav a {
+            margin: 0 14px; text-decoration: none;
+            color: #555; font-size: 0.95rem; transition: color 0.2s;
+        }
+        .navbar nav a:hover, .navbar nav a.active { color: #4caf50; font-weight: 600; }
+        .user-area { display: flex; align-items: center; gap: 10px; font-size: 0.88rem; }
+        .user-area a { color: #aaa; text-decoration: none; }
+        .user-area a:hover { color: #e53935; }
+        .btn-login {
+            background: #4caf50; color: white; border: none;
+            padding: 7px 16px; border-radius: 20px; cursor: pointer;
+            font-size: 0.85rem; font-weight: 600; transition: background 0.2s;
+        }
+        .btn-login:hover { background: #388e3c; }
+
+        .container { max-width: 860px; margin: 0 auto; padding: 36px 20px; flex: 1; }
+        .page-header { margin-bottom: 28px; }
+        .page-header h1 { font-size: 1.7rem; margin-bottom: 6px; }
+        .page-header p { color: #777; font-size: 0.95rem; }
+
+        .empty-state {
+            text-align: center; padding: 60px 20px;
+            background: white; border-radius: 14px;
+            border: 2px dashed #ddd; color: #aaa;
+        }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+        .empty-state p { margin-bottom: 16px; font-size: 0.95rem; }
+
+        .order-card {
+            background: white; border-radius: 14px;
+            padding: 20px 24px; border: 1px solid #eee;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            margin-bottom: 14px;
+            display: flex; align-items: center; justify-content: space-between;
+            transition: transform 0.15s, box-shadow 0.15s;
+            flex-wrap: wrap; gap: 12px;
+        }
+        .order-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+        }
+        .order-card .order-id { font-weight: 700; font-size: 1rem; }
+        .order-card .order-meta { font-size: 0.85rem; color: #888; margin-top: 3px; }
+        .order-card .right { display: flex; align-items: center; gap: 12px; }
+
+        .status-badge {
+            display: inline-block; padding: 4px 12px;
+            border-radius: 20px; font-size: 0.75rem;
+            font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .status-paid       { background: #e8f5e9; color: #2e7d32; }
+        .status-pending    { background: #fff8e1; color: #f57f17; }
+        .status-processing { background: #e3f2fd; color: #1565c0; }
+        .status-failed     { background: #fdecea; color: #c62828; }
+
+        .btn-view {
+            background: #4caf50; color: white; border: none;
+            padding: 8px 18px; border-radius: 8px; cursor: pointer;
+            font-size: 0.85rem; font-weight: 600; text-decoration: none;
+            transition: background 0.2s, transform 0.1s;
+            display: inline-block;
+        }
+        .btn-view:hover { background: #388e3c; transform: translateY(-1px); }
+
+        .btn-clear {
+            background: none; border: 1px solid #ddd; color: #aaa;
+            padding: 7px 16px; border-radius: 8px; cursor: pointer;
+            font-size: 0.85rem; transition: all 0.2s;
+        }
+        .btn-clear:hover { border-color: #e53935; color: #e53935; }
+
+        #loading-orders { color: #aaa; font-style: italic; text-align: center; padding: 30px; }
+
+        footer {
+            background: white; padding: 18px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-top: 1px solid #eee; color: #999; font-size: 0.85rem;
+            flex-wrap: wrap; gap: 8px;
+        }
+        footer a { margin-left: 14px; text-decoration: none; color: #999; transition: color 0.2s; }
+        footer a:hover { color: #4caf50; }
+
+        .toast {
+            position: fixed; bottom: 24px; right: 24px;
+            background: #323232; color: white;
+            padding: 12px 22px; border-radius: 8px;
+            font-size: 0.9rem; box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+            transition: opacity 0.3s; z-index: 999;
+        }
+        .toast.green { background: #43a047; }
+        .toast.hidden { opacity: 0; pointer-events: none; }
+
+        @media (max-width: 768px) {
+            .navbar { flex-direction: column; gap: 10px; padding: 12px 20px; }
+            .order-card { flex-direction: column; align-items: flex-start; }
+            footer { flex-direction: column; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="navbar">
+        <div class="logo">🌿 INF349</div>
+        <nav>
+            <a href="/ui">Boutique</a>
+            <a href="/ui/orders" class="active">Mes commandes</a>
+        </nav>
+        <div class="user-area" id="user-area">
+            <button class="btn-login" onclick="login()">Se connecter</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>Mes commandes</h1>
+            <p>Retrouvez toutes vos commandes récentes.</p>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; margin-bottom:14px;">
+            <button class="btn-clear" onclick="clearHistory()">Effacer l'historique</button>
+        </div>
+
+        <div id="loading-orders">Chargement...</div>
+        <div id="orders-list"></div>
+    </div>
+
+    <div class="toast hidden" id="toast"></div>
+
+    <footer>
+        <div>© 2026 INF349 — Tous droits réservés</div>
+        <div>
+            <a href="#">Confidentialité</a>
+            <a href="#">Conditions</a>
+            <a href="#">Contact</a>
+        </div>
+    </footer>
+
+    <script>
+        // ── LOGIN ──
+        function login() {
+            const name = prompt('Entrez votre prénom :') || 'Kelly';
+            localStorage.setItem('inf349_user', name);
+            renderUserArea();
+        }
+        function logout() {
+            localStorage.removeItem('inf349_user');
+            renderUserArea();
+        }
+        function renderUserArea() {
+            const user = localStorage.getItem('inf349_user');
+            const area = document.getElementById('user-area');
+            area.innerHTML = user
+                ? `<span>👤 ${user}</span> <a href="#" onclick="logout()">Déconnexion</a>`
+                : `<button class="btn-login" onclick="login()">Se connecter</button>`;
+        }
+
+        // ── TOAST ──
+        function showToast(msg, type = '') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast' + (type ? ' ' + type : '');
+            setTimeout(() => t.classList.add('hidden'), 3000);
+        }
+
+        // ── HISTORIQUE ──
+        function getSavedOrders() {
+            return JSON.parse(localStorage.getItem('inf349_orders') || '[]');
+        }
+        function clearHistory() {
+            if (confirm('Effacer tout l\'historique local ?')) {
+                localStorage.removeItem('inf349_orders');
+                renderOrders([]);
+                showToast('Historique effacé.');
+            }
+        }
+
+        // ── CHARGER COMMANDES ──
+        async function loadOrders() {
+            const ids = getSavedOrders();
+            document.getElementById('loading-orders').style.display = 'none';
+
+            if (!ids.length) {
+                renderOrders([]);
+                return;
+            }
+
+            const results = await Promise.allSettled(
+                ids.map(id => fetch(`/order/${id}`).then(r => r.status === 202
+                    ? { id, status: 'processing', total_price: null, paid: false }
+                    : r.json().then(d => ({ ...d.order, status: d.order?.paid ? 'paid' : (d.order?.transaction?.error?.code ? 'failed' : 'pending') }))
+                ))
+            );
+
+            const orders = results
+                .filter(r => r.status === 'fulfilled')
+                .map(r => r.value)
+                .filter(Boolean);
+
+            renderOrders(orders);
+        }
+
+        function renderOrders(orders) {
+            const list = document.getElementById('orders-list');
+
+            if (!orders.length) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📦</div>
+                        <p>Aucune commande dans l'historique.</p>
+                        <a href="/ui" class="btn-view">Aller à la boutique</a>
+                    </div>`;
+                return;
+            }
+
+            list.innerHTML = orders.map(o => {
+                const statusLabel = { paid: 'Payée', pending: 'En attente', processing: 'En traitement', failed: 'Échouée' }[o.status] || o.status;
+                const price = o.total_price != null ? (o.total_price / 100).toFixed(2) + ' $' : '—';
+                return `
+                <div class="order-card">
+                    <div>
+                        <div class="order-id">Commande #${o.id}</div>
+                        <div class="order-meta">Total : ${price}</div>
+                    </div>
+                    <div class="right">
+                        <span class="status-badge status-${o.status}">${statusLabel}</span>
+                        <a href="/ui/order/${o.id}" class="btn-view">Voir →</a>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        renderUserArea();
+        loadOrders();
+    </script>
+</body>
+</html>

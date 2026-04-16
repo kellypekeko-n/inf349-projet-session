@@ -11,3 +11,8 @@ def ui_index():
 @ui_bp.route("/ui/order/<int:order_id>", methods=["GET"])
 def ui_order(order_id):
     return render_template("order.html", order_id=order_id)
+
+
+@ui_bp.route("/ui/orders", methods=["GET"])
+def ui_orders():
+    return render_template("orders.html")

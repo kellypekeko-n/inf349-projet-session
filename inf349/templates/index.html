@@ -41,8 +41,16 @@
             font-size: 0.95rem;
             transition: color 0.2s;
         }
-        .navbar nav a:hover { color: #4caf50; }
-        .navbar .user { color: #6d4c41; font-size: 0.9rem; }
+        .navbar nav a:hover, .navbar nav a.active { color: #4caf50; font-weight: 600; }
+        .user-area { display: flex; align-items: center; gap: 10px; font-size: 0.88rem; }
+        .user-area a { color: #aaa; text-decoration: none; }
+        .user-area a:hover { color: #e53935; }
+        .btn-login {
+            background: #4caf50; color: white; border: none;
+            padding: 7px 16px; border-radius: 20px; cursor: pointer;
+            font-size: 0.85rem; font-weight: 600; transition: background 0.2s;
+        }
+        .btn-login:hover { background: #388e3c; }
 
         /* ── PANIER FLOTTANT ── */
         .cart {
@@ -273,10 +281,12 @@
     <header class="navbar">
         <div class="logo">🌿 INF349</div>
         <nav>
-            <a href="/ui">Boutique</a>
-            <a href="#find-section">Mes commandes</a>
+            <a href="/ui" class="active">Boutique</a>
+            <a href="/ui/orders">Mes commandes</a>
         </nav>
-        <div class="user">👤 Kelly</div>
+        <div class="user-area" id="user-area">
+            <button class="btn-login" onclick="login()">Se connecter</button>
+        </div>
     </header>
 
     <!-- PANIER FLOTTANT -->
@@ -336,6 +346,33 @@
 
     <script>
         let allProducts = [];
+
+        // ── LOGIN ──
+        function login() {
+            const name = prompt('Entrez votre prénom :') || 'Kelly';
+            localStorage.setItem('inf349_user', name);
+            renderUserArea();
+        }
+        function logout() {
+            localStorage.removeItem('inf349_user');
+            renderUserArea();
+        }
+        function renderUserArea() {
+            const user = localStorage.getItem('inf349_user');
+            const area = document.getElementById('user-area');
+            area.innerHTML = user
+                ? `<span>👤 ${user}</span> <a href="#" onclick="logout()">Déconnexion</a>`
+                : `<button class="btn-login" onclick="login()">Se connecter</button>`;
+        }
+
+        // ── SAUVEGARDER COMMANDE DANS HISTORIQUE ──
+        function saveOrderToHistory(orderId) {
+            const orders = JSON.parse(localStorage.getItem('inf349_orders') || '[]');
+            if (!orders.includes(orderId)) {
+                orders.unshift(orderId);
+                localStorage.setItem('inf349_orders', JSON.stringify(orders.slice(0, 50)));
+            }
+        }
 
         // ── TOAST ──
         function showToast(msg, type = '') {
@@ -438,6 +475,7 @@
 
                 const match = res.url.match(/\/order\/(\d+)/);
                 if (match) {
+                    saveOrderToHistory(parseInt(match[1]));
                     showToast('Commande créée !', 'green');
                     setTimeout(() => window.location.href = `/ui/order/${match[1]}`, 600);
                 } else {
@@ -476,6 +514,7 @@
             if (e.key === 'Enter') findOrder();
         });
 
+        renderUserArea();
         loadProducts();
     </script>
 </body>

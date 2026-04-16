@@ -273,7 +273,7 @@
         <nav>
             <a href="/ui" class="active">Boutique</a>
             <a href="/ui/orders">Commandes</a>
-            <a href="/ui/admin">Admin</a>
+            <a href="/ui/admin" id="nav-admin" style="display:none">Admin</a>
         </nav>
         <div class="user-area" id="user-area">
             <a href="/ui/login" class="btn-login">Se connecter</a>
@@ -366,6 +366,9 @@
                 } else {
                     area.innerHTML = `<a href="/ui/login" class="btn-login">Se connecter</a>`;
                 }
+                // Masquer le lien Admin pour les non-admins
+                const adminLink = document.getElementById('nav-admin');
+                if (adminLink) adminLink.style.display = d.is_admin ? '' : 'none';
                 updateOrderBtn();
             } catch (e) {}
         }

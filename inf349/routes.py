@@ -169,6 +169,12 @@ USERS = {
     "admin": "admin123",
 }
 
+ADMINS = {"admin"}
+
+
+def is_admin():
+    return session.get("user") in ADMINS
+
 
 @bp.route("/login", methods=["POST"])
 def login_route():
@@ -177,7 +183,7 @@ def login_route():
     password = data.get("password", "")
     if USERS.get(username) == password:
         session["user"] = username
-        return jsonify({"user": username})
+        return jsonify({"user": username, "is_admin": username in ADMINS})
     return jsonify({"error": "Identifiants invalides"}), 401
 
 
@@ -189,13 +195,16 @@ def logout_route():
 
 @bp.route("/me", methods=["GET"])
 def me():
-    return jsonify({"user": session.get("user")})
+    user = session.get("user")
+    return jsonify({"user": user, "is_admin": user in ADMINS if user else False})
 
 
 # ── ADMIN ─────────────────────────────────────────────────────────────────────
 
 @bp.route("/admin/orders", methods=["GET"])
 def admin_orders_api():
+    if not is_admin():
+        return jsonify({"error": "Accès refusé"}), 403
     from .models import Order
     orders = []
     for o in Order.select().order_by(Order.id.desc()).limit(100):
@@ -212,6 +221,8 @@ def admin_orders_api():
 
 @bp.route("/admin/stats", methods=["GET"])
 def admin_stats_api():
+    if not is_admin():
+        return jsonify({"error": "Accès refusé"}), 403
     from .models import Order
     total = Order.select().count()
     paid_list = list(Order.select().where(Order.paid == True))

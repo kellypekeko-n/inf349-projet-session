@@ -202,8 +202,9 @@
         <div id="denied-block" style="display:none">
             <div class="access-denied">
                 <div class="icon">🔒</div>
-                <p>Accès réservé aux administrateurs.<br>Connectez-vous pour continuer.</p>
-                <a href="/ui/login?next=/ui/admin" class="btn-login-link">Se connecter</a>
+                <p>Accès réservé aux administrateurs.</p>
+                <p id="denied-reason" style="font-size:0.85rem;color:#aaa;margin-top:4px;margin-bottom:16px;"></p>
+                <a href="/ui/login?next=/ui/admin" class="btn-login-link">Se connecter en tant qu'admin</a>
             </div>
         </div>
     </div>
@@ -215,17 +216,21 @@
 
     <script>
         async function init() {
-            // Vérifier la session
             const meRes = await fetch('/me');
             const meData = await meRes.json();
 
             const area = document.getElementById('user-area');
             if (meData.user) {
                 area.innerHTML = `<span>👤 ${meData.user}</span> <a href="#" onclick="doLogout()">Déconnexion</a>`;
-            } else {
-                // Accès refusé
+            }
+
+            if (!meData.is_admin) {
                 document.getElementById('loading-admin').style.display = 'none';
                 document.getElementById('denied-block').style.display = 'block';
+                document.getElementById('denied-reason').textContent =
+                    meData.user
+                        ? 'Votre compte n\'a pas les droits administrateur.'
+                        : 'Vous devez vous connecter avec un compte administrateur.';
                 return;
             }
 

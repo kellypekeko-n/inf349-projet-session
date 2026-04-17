@@ -1,7 +1,6 @@
-import json
 import os
-from urllib import request, error
 
+import requests as http_requests
 from rq import Queue
 from redis import Redis
 
@@ -30,8 +29,9 @@ class ProductService:
         url = f"{self.base_url}products.json"
 
         try:
-            with request.urlopen(url) as response:
-                payload = json.loads(response.read().decode("utf-8"))
+            response = http_requests.get(url, timeout=10)
+            response.raise_for_status()
+            payload = response.json()
         except Exception as exc:
             raise BusinessError(
                 message=f"Impossible de récupérer les produits distants: {exc}",
@@ -72,55 +72,38 @@ class PaymentService:
         self.base_url = base_url.rstrip("/")
 
     def process_payment(self, credit_card_info, amount):
-        payload_dict = {
+        payload = {
             "credit_card": credit_card_info,
             "amount_charged": int(amount),
         }
-        payload = json.dumps(payload_dict).encode("utf-8")
-
-        req = request.Request(
-            self.base_url,
-            data=payload,
-            method="POST",
-        )
-        req.add_header("Content-Type", "application/json")
-        req.add_header("Accept", "application/json")
-        req.add_header("User-Agent", "Mozilla/5.0")
-        req.add_header("Content-Length", str(len(payload)))
 
         try:
-            with request.urlopen(req) as response:
-                raw_body = response.read().decode("utf-8")
-                print("PAYMENT SUCCESS STATUS:", response.status)
-                print("PAYMENT SUCCESS BODY:", raw_body)
+            response = http_requests.post(
+                self.base_url,
+                json=payload,
+                timeout=30,
+                headers={"Accept": "application/json"},
+            )
+            print("PAYMENT STATUS:", response.status_code)
+            print("PAYMENT BODY:", response.text)
 
-                data = json.loads(raw_body)
+            if response.status_code == 200:
+                data = response.json()
                 return {
                     "success": True,
                     "credit_card": data["credit_card"],
                     "transaction": data["transaction"],
                 }
 
-        except error.HTTPError as exc:
-            body = exc.read().decode("utf-8")
-            print("PAYMENT HTTP ERROR STATUS:", exc.code)
-            print("PAYMENT HTTP ERROR BODY:", body)
-
+            # Erreur retournée par le service distant (422, etc.)
             try:
-                data = json.loads(body) if body else {
-                    "errors": {
-                        "credit_card": {
-                            "code": "payment-error",
-                            "name": f"Erreur HTTP {exc.code} du service de paiement."
-                        }
-                    }
-                }
-            except json.JSONDecodeError:
+                data = response.json()
+            except Exception:
                 data = {
                     "errors": {
                         "credit_card": {
                             "code": "payment-error",
-                            "name": body or f"Erreur HTTP {exc.code} du service de paiement."
+                            "name": response.text or f"Erreur HTTP {response.status_code}",
                         }
                     }
                 }
@@ -128,7 +111,7 @@ class PaymentService:
             return {
                 "success": False,
                 "error": data,
-                "status_code": exc.code,
+                "status_code": response.status_code,
             }
 
         except Exception as exc:

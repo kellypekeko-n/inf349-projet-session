@@ -15,7 +15,10 @@ def _cache_order_in_redis(order):
     r.set(f"order:{order.id}", json.dumps(payload))
 
 
-def process_payment(order_id, credit_card_info, payment_service_url):
+PAYMENT_URL = "https://dimensweb.uqac.ca/~jgnault/shops/pay"
+
+
+def process_payment(order_id, credit_card_info, payment_service_url=None):
     if db.is_closed():
         db.connect()
 
@@ -26,7 +29,8 @@ def process_payment(order_id, credit_card_info, payment_service_url):
         # amount_charged = total_price + shipping_price (no tax — see spec example: 9148 + 1000 = 10148)
         amount_to_charge = int(order.total_price + order.shipping_price)
 
-        payment_service = PaymentService(payment_service_url)
+        url = payment_service_url or PAYMENT_URL
+        payment_service = PaymentService(url)
         result = payment_service.process_payment(credit_card_info, amount_to_charge)
 
         if result["success"]:

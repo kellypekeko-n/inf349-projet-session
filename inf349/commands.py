@@ -8,7 +8,8 @@ from rq import Queue
 from rq.worker import SimpleWorker
 from rq.timeouts import BaseDeathPenalty
 
-from .models import db, Product, Order, OrderItem, ShippingInformation, CreditCard, Transaction
+from werkzeug.security import generate_password_hash
+from .models import db, Product, Order, OrderItem, ShippingInformation, CreditCard, Transaction, User
 from .services import ProductService
 
 
@@ -33,9 +34,24 @@ def init_db_command():
         safe=True,
     )
     db.create_tables(
-        [Product, ShippingInformation, CreditCard, Transaction, Order, OrderItem],
+        [Product, ShippingInformation, CreditCard, Transaction, Order, OrderItem, User],
         safe=True,
     )
+
+    # Créer les comptes par défaut s'ils n'existent pas
+    default_users = [
+        {"username": "kelly", "password": "1234",    "is_admin": False},
+        {"username": "admin", "password": "admin123", "is_admin": True},
+    ]
+    for u in default_users:
+        User.get_or_create(
+            username=u["username"],
+            defaults={
+                "password_hash": generate_password_hash(u["password"]),
+                "is_admin": u["is_admin"],
+            },
+        )
+    click.echo("Default users created (kelly, admin).")
 
     product_service = ProductService(current_app.config["PRODUCT_SERVICE_URL"])
 

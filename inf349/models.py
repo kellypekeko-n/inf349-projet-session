@@ -13,10 +13,10 @@ from peewee import (
 from playhouse.postgres_ext import PostgresqlExtDatabase
 
 db = PostgresqlExtDatabase(
-    os.environ.get("DB_NAME"),
-    host=os.environ.get("DB_HOST"),
-    user=os.environ.get("DB_USER"),
-    password=os.environ.get("DB_PASSWORD"),
+    os.environ.get("DB_NAME", "api8inf349"),
+    host=os.environ.get("DB_HOST", "localhost"),
+    user=os.environ.get("DB_USER", "user"),
+    password=os.environ.get("DB_PASSWORD", "pass"),
     port=int(os.environ.get("DB_PORT", 5432)),
 )
 
@@ -99,11 +99,20 @@ class OrderItem(BaseModel):
         table_name = "order_items"
 
 
+class User(BaseModel):
+    username = CharField(unique=True)
+    password_hash = CharField()
+    is_admin = BooleanField(default=False)
+
+    class Meta:
+        table_name = "users"
+
+
 def initialize_db(database):
     if database.is_closed():
         database.connect()
 
     database.create_tables(
-        [Product, ShippingInformation, CreditCard, Transaction, Order, OrderItem],
+        [Product, ShippingInformation, CreditCard, Transaction, Order, OrderItem, User],
         safe=True,
     )

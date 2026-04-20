@@ -1,6 +1,6 @@
 import os
 
-import requests as http_requests
+import requests
 from rq import Queue
 from redis import Redis
 
@@ -29,7 +29,7 @@ class ProductService:
         url = f"{self.base_url}products.json"
 
         try:
-            response = http_requests.get(url, timeout=10)
+            response = requests.get(url, timeout=10)
             response.raise_for_status()
             payload = response.json()
         except Exception as exc:
@@ -69,7 +69,7 @@ class ProductService:
 
 class PaymentService:
     def __init__(self, base_url):
-        self.base_url = base_url.rstrip("/")
+        self.base_url = base_url
 
     def process_payment(self, credit_card_info, amount):
         payload = {
@@ -78,7 +78,7 @@ class PaymentService:
         }
 
         try:
-            response = http_requests.post(
+            response = requests.post(
                 self.base_url,
                 json=payload,
                 timeout=30,

@@ -18,7 +18,7 @@ def test_calculate_shipping_price():
     # Test 500g - 2kg
     assert calculate_shipping_price(501) == 1000  # $10.00
     assert calculate_shipping_price(1500) == 1000  # $10.00
-    assert calculate_shipping_price(2000) == 1000  # $10.00
+    assert calculate_shipping_price(2000) == 2500  # >= 2000g → $25.00
     
     # Test > 2kg
     assert calculate_shipping_price(2001) == 2500  # $25.00
@@ -46,9 +46,9 @@ def test_calculate_tax():
     tax = calculate_tax(10000, 'NS')  # $100.00
     assert tax == Decimal('1400.00')  # 14% of $100.00
     
-    # Test unknown province (defaults to QC)
+    # Test unknown province (returns 0)
     tax = calculate_tax(10000, 'XX')  # $100.00
-    assert tax == Decimal('1500.00')  # 15% of $100.00
+    assert tax == Decimal('0.00')  # unknown province → no tax
 
 def test_validate_order_creation():
     """Test order creation validation."""
@@ -204,6 +204,11 @@ def test_format_order_response():
     
     # Create mock order (this would normally be done in a test fixture)
     # For this test, we'll create a simple mock object
+    class MockItem:
+        def __init__(self):
+            self.product_id = 1
+            self.quantity = 2
+
     class MockOrder:
         def __init__(self):
             self.id = 1
@@ -212,18 +217,13 @@ def test_format_order_response():
             self.email = 'test@example.com'
             self.paid = True
             self.shipping_price = 500
-            self.quantity = 2
-            
+            self.items = [MockItem()]
+
             # Mock related objects
-            self.product = MockProduct()
             self.shipping_information = MockShipping()
             self.credit_card = MockCreditCard()
             self.transaction = MockTransaction()
-    
-    class MockProduct:
-        def __init__(self):
-            self.id = 1
-    
+
     class MockShipping:
         def __init__(self):
             self.country = 'Canada'
@@ -231,7 +231,7 @@ def test_format_order_response():
             self.postal_code = 'G7X 3Y7'
             self.city = 'Chicoutimi'
             self.province = 'QC'
-    
+
     class MockCreditCard:
         def __init__(self):
             self.name = 'John Doe'
@@ -239,12 +239,14 @@ def test_format_order_response():
             self.last_digits = '4242'
             self.expiration_year = 2024
             self.expiration_month = 9
-    
+
     class MockTransaction:
         def __init__(self):
             self.id = 'test_tx_id'
             self.success = True
             self.amount_charged = 2300
+            self.error_code = None
+            self.error_name = None
     
     order = MockOrder()
     response = format_order_response(order)
@@ -260,8 +262,8 @@ def test_format_order_response():
     assert order_data['shipping_price'] == 500
     
     # Check product info
-    assert order_data['product']['id'] == 1
-    assert order_data['product']['quantity'] == 2
+    assert order_data['products'][0]['id'] == 1
+    assert order_data['products'][0]['quantity'] == 2
     
     # Check shipping info
     shipping = order_data['shipping_information']

@@ -15,7 +15,7 @@ def _cache_order_in_redis(order):
     r.set(f"order:{order.id}", json.dumps(payload))
 
 
-PAYMENT_URL = "https://dimensweb.uqac.ca/~jgnault/shops/pay"
+PAYMENT_URL = "https://dimensweb.uqac.ca/~jgnault/shops/pay/"
 
 
 def process_payment(order_id, credit_card_info, payment_service_url=None):

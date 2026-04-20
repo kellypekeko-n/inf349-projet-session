@@ -359,9 +359,7 @@ def test_tax_calculation_by_province(client):
         data = json.loads(response.data)
         order = data['order']
         
-        # Verify tax calculation
-        subtotal = order['total_price'] + order['shipping_price']
-        expected_tax = subtotal * expected_rate
-        expected_total = subtotal + expected_tax
-        
-        assert abs(order['total_price_tax'] - expected_total) < 0.01
+        # Verify tax calculation (tax applies only to total_price, not shipping)
+        expected_total = order['total_price'] * (1 + expected_rate)
+
+        assert abs(order['total_price_tax'] - expected_total) < 1

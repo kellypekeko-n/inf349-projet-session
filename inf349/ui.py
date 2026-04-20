@@ -23,6 +23,11 @@ def ui_login():
     return render_template("login.html")
 
 
+@ui_bp.route("/ui/register", methods=["GET"])
+def ui_register():
+    return render_template("register.html")
+
+
 @ui_bp.route("/ui/admin", methods=["GET"])
 def ui_admin():
     return render_template("admin.html")

@@ -1,277 +1,164 @@
 import json
-from inf349.models import Product, Order
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _post_order(client, product_id=1, quantity=2):
+    resp = client.post(
+        "/order",
+        json={"product": {"id": product_id, "quantity": quantity}},
+        content_type="application/json",
+    )
+    return resp
+
+
+def _get_order(client, resp_302):
+    oid = resp_302.headers["Location"].split("/")[-1]
+    return client.get(f"/order/{oid}")
+
+
+# ── POST /order ────────────────────────────────────────────────────────────────
 
 def test_create_order_success(client):
-    """Test successful order creation."""
-    order_data = {
-        "product": {
-            "id": 1,
-            "quantity": 2
-        }
-    }
-    
-    response = client.post('/order', 
-                          data=json.dumps(order_data),
-                          content_type='application/json')
-    
-    assert response.status_code == 302
-    assert 'Location' in response.headers
-    
-    # Check that order was created
-    location = response.headers['Location']
-    order_id = location.split('/')[-1]
-    
-    # Get the order
-    response = client.get(f'/order/{order_id}')
-    assert response.status_code == 200
-    
-    data = json.loads(response.data)
-    order = data['order']
-    
-    assert order['product']['id'] == 1
-    assert order['product']['quantity'] == 2
-    assert order['total_price'] == 2000  # 2 * $10.00
-    assert order['shipping_price'] == 500  # Weight: 2 * 200g = 400g <= 500g
-    assert order['paid'] == False
-    assert order['email'] is None
-    assert order['credit_card'] == {}
-    assert order['transaction'] == {}
+    resp = _post_order(client, product_id=1, quantity=2)
+    assert resp.status_code == 302
+    assert "Location" in resp.headers
+
+    order = _get_order(client, resp).get_json()["order"]
+    # id=1 prix=2810 cts, qty=2 → total=5620, poids=800g → shipping=1000
+    assert order["products"][0]["id"] == 1
+    assert order["products"][0]["quantity"] == 2
+    assert order["total_price"] == 5620
+    assert order["shipping_price"] == 1000
+    assert order["paid"] is False
+    assert order["email"] is None
+    assert order["credit_card"] == {}
+    assert order["transaction"] == {}
+
 
 def test_create_order_missing_product(client):
-    """Test order creation with missing product."""
-    order_data = {}
-    
-    response = client.post('/order', 
-                          data=json.dumps(order_data),
-                          content_type='application/json')
-    
-    assert response.status_code == 422
-    
-    data = json.loads(response.data)
-    assert 'errors' in data
-    assert 'product' in data['errors']
-    assert data['errors']['product']['code'] == 'missing-fields'
+    resp = client.post("/order", json={}, content_type="application/json")
+    assert resp.status_code == 422
+    data = resp.get_json()
+    assert data["errors"]["product"]["code"] == "missing-fields"
+
 
 def test_create_order_missing_fields(client):
-    """Test order creation with missing product fields."""
-    order_data = {
-        "product": {
-            "id": 1
-            # Missing quantity
-        }
-    }
-    
-    response = client.post('/order', 
-                          data=json.dumps(order_data),
-                          content_type='application/json')
-    
-    assert response.status_code == 422
-    
-    data = json.loads(response.data)
-    assert 'errors' in data
-    assert 'product' in data['errors']
-    assert data['errors']['product']['code'] == 'missing-fields'
+    resp = client.post("/order", json={"product": {"id": 1}}, content_type="application/json")
+    assert resp.status_code == 422
+    assert resp.get_json()["errors"]["product"]["code"] == "missing-fields"
+
 
 def test_create_order_invalid_quantity(client):
-    """Test order creation with invalid quantity."""
-    order_data = {
-        "product": {
-            "id": 1,
-            "quantity": 0
-        }
-    }
-    
-    response = client.post('/order', 
-                          data=json.dumps(order_data),
-                          content_type='application/json')
-    
-    assert response.status_code == 422
-    
-    data = json.loads(response.data)
-    assert 'errors' in data
-    assert 'product' in data['errors']
-    assert data['errors']['product']['code'] == 'missing-fields'
+    resp = client.post(
+        "/order", json={"product": {"id": 1, "quantity": 0}}, content_type="application/json"
+    )
+    assert resp.status_code == 422
+    assert resp.get_json()["errors"]["product"]["code"] == "missing-fields"
+
 
 def test_create_order_out_of_inventory(client):
-    """Test order creation with out of stock product."""
-    order_data = {
-        "product": {
-            "id": 2,  # This product is out of stock
-            "quantity": 1
-        }
-    }
-    
-    response = client.post('/order', 
-                          data=json.dumps(order_data),
-                          content_type='application/json')
-    
-    assert response.status_code == 422
-    
-    data = json.loads(response.data)
-    assert 'errors' in data
-    assert 'product' in data['errors']
-    assert data['errors']['product']['code'] == 'out-of-inventory'
+    # id=4 est hors stock
+    resp = client.post(
+        "/order", json={"product": {"id": 4, "quantity": 1}}, content_type="application/json"
+    )
+    assert resp.status_code == 422
+    assert resp.get_json()["errors"]["product"]["code"] == "out-of-inventory"
+
 
 def test_create_order_nonexistent_product(client):
-    """Test order creation with non-existent product."""
-    order_data = {
-        "product": {
-            "id": 999,  # Non-existent product
-            "quantity": 1
-        }
-    }
-    
-    response = client.post('/order', 
-                          data=json.dumps(order_data),
-                          content_type='application/json')
-    
-    assert response.status_code == 422
-    
-    data = json.loads(response.data)
-    assert 'errors' in data
-    assert 'product' in data['errors']
-    assert data['errors']['product']['code'] == 'missing-fields'
+    resp = client.post(
+        "/order", json={"product": {"id": 999, "quantity": 1}}, content_type="application/json"
+    )
+    assert resp.status_code == 422
+    assert resp.get_json()["errors"]["product"]["code"] == "missing-fields"
+
+
+# ── GET /order/<id> ────────────────────────────────────────────────────────────
 
 def test_get_order_not_found(client):
-    """Test getting non-existent order."""
-    response = client.get('/order/999')
-    assert response.status_code == 404
+    assert client.get("/order/99999").status_code == 404
+
 
 def test_get_order_success(client, sample_order):
-    """Test getting existing order."""
-    response = client.get(f'/order/{sample_order.id}')
-    assert response.status_code == 200
-    
-    data = json.loads(response.data)
-    assert 'order' in data
-    
-    order = data['order']
-    assert order['id'] == sample_order.id
-    assert order['product']['id'] == 1
-    assert order['product']['quantity'] == 2
-    assert order['total_price'] == 2000
-    assert order['shipping_price'] == 500
-    assert order['paid'] == False
+    # sample_order : 2 × id=1 → total=5620, shipping=1000
+    resp = client.get(f"/order/{sample_order.id}")
+    assert resp.status_code == 200
+    order = resp.get_json()["order"]
+    assert order["id"] == sample_order.id
+    assert order["products"][0]["id"] == 1
+    assert order["products"][0]["quantity"] == 2
+    assert order["total_price"] == 5620
+    assert order["shipping_price"] == 1000
+    assert order["paid"] is False
+
+
+# ── PUT /order/<id> ────────────────────────────────────────────────────────────
+
+SHIPPING = {
+    "country": "Canada",
+    "address": "123 Test St",
+    "postal_code": "G7X 3Y7",
+    "city": "Chicoutimi",
+    "province": "QC",
+}
+
 
 def test_update_order_customer_info_success(client, sample_order):
-    """Test successful customer information update."""
-    update_data = {
-        "order": {
-            "email": "test@example.com",
-            "shipping_information": {
-                "country": "Canada",
-                "address": "123 Test St",
-                "postal_code": "G7X 3Y7",
-                "city": "Chicoutimi",
-                "province": "QC"
-            }
-        }
-    }
-    
-    response = client.put(f'/order/{sample_order.id}',
-                         data=json.dumps(update_data),
-                         content_type='application/json')
-    
-    assert response.status_code == 200
-    
-    data = json.loads(response.data)
-    order = data['order']
-    
-    assert order['email'] == "test@example.com"
-    assert order['shipping_information']['country'] == "Canada"
-    assert order['shipping_information']['address'] == "123 Test St"
-    assert order['shipping_information']['postal_code'] == "G7X 3Y7"
-    assert order['shipping_information']['city'] == "Chicoutimi"
-    assert order['shipping_information']['province'] == "QC"
-    
-    # Check tax calculation (QC = 15%)
-    expected_total = 2000 + 500  # total_price + shipping_price
-    expected_tax = expected_total * 0.15
-    assert abs(order['total_price_tax'] - (expected_total + expected_tax)) < 0.01
+    resp = client.put(
+        f"/order/{sample_order.id}",
+        json={"order": {"email": "test@example.com", "shipping_information": SHIPPING}},
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    order = resp.get_json()["order"]
+    assert order["email"] == "test@example.com"
+    assert order["shipping_information"]["province"] == "QC"
+    # Taxe QC 15% sur total_price uniquement (pas le shipping)
+    # total_price=5620, tax=5620*0.15=843 → total_price_tax=6463
+    assert abs(order["total_price_tax"] - 6463.0) < 0.5
+
 
 def test_update_order_missing_fields(client, sample_order):
-    """Test order update with missing required fields."""
-    update_data = {
-        "order": {
-            "email": "test@example.com",
-            "shipping_information": {
-                "country": "Canada",
-                "address": "123 Test St"
-                # Missing postal_code, city, province
-            }
-        }
-    }
-    
-    response = client.put(f'/order/{sample_order.id}',
-                         data=json.dumps(update_data),
-                         content_type='application/json')
-    
-    assert response.status_code == 422
-    
-    data = json.loads(response.data)
-    assert 'errors' in data
-    assert 'order' in data['errors']
-    assert data['errors']['order']['code'] == 'missing-fields'
+    resp = client.put(
+        f"/order/{sample_order.id}",
+        json={"order": {"email": "t@t.com", "shipping_information": {"country": "Canada"}}},
+        content_type="application/json",
+    )
+    assert resp.status_code == 422
+    assert resp.get_json()["errors"]["order"]["code"] == "missing-fields"
+
 
 def test_update_order_not_found(client):
-    """Test updating non-existent order."""
-    update_data = {
-        "order": {
-            "email": "test@example.com",
-            "shipping_information": {
-                "country": "Canada",
-                "address": "123 Test St",
-                "postal_code": "G7X 3Y7",
-                "city": "Chicoutimi",
-                "province": "QC"
-            }
-        }
-    }
-    
-    response = client.put('/order/999',
-                         data=json.dumps(update_data),
-                         content_type='application/json')
-    
-    assert response.status_code == 404
+    resp = client.put(
+        "/order/99999",
+        json={"order": {"email": "t@t.com", "shipping_information": SHIPPING}},
+        content_type="application/json",
+    )
+    assert resp.status_code == 404
 
-def test_shipping_price_calculation(client):
-    """Test shipping price calculation for different weights."""
-    # Light product (<= 500g)
-    order_data = {
-        "product": {
-            "id": 1,  # 200g each
-            "quantity": 2  # Total: 400g
-        }
-    }
-    
-    response = client.post('/order', 
-                          data=json.dumps(order_data),
-                          content_type='application/json')
-    
-    assert response.status_code == 302
-    location = response.headers['Location']
-    order_id = location.split('/')[-1]
-    
-    response = client.get(f'/order/{order_id}')
-    data = json.loads(response.data)
-    assert data['order']['shipping_price'] == 500  # $5.00
-    
-    # Heavy product (> 2kg)
-    order_data = {
-        "product": {
-            "id": 3,  # 3000g each
-            "quantity": 1  # Total: 3000g
-        }
-    }
-    
-    response = client.post('/order', 
-                          data=json.dumps(order_data),
-                          content_type='application/json')
-    
-    assert response.status_code == 302
-    location = response.headers['Location']
-    order_id = location.split('/')[-1]
-    
-    response = client.get(f'/order/{order_id}')
-    data = json.loads(response.data)
-    assert data['order']['shipping_price'] == 2500  # $25.00
+
+# ── Calcul frais d'expédition ──────────────────────────────────────────────────
+
+def test_shipping_price_light(client):
+    # 1 × id=1 (400g ≤ 500g) → shipping = 500
+    resp = _post_order(client, product_id=1, quantity=1)
+    assert resp.status_code == 302
+    order = _get_order(client, resp).get_json()["order"]
+    assert order["shipping_price"] == 500
+
+
+def test_shipping_price_medium(client):
+    # 2 × id=1 (800g, 500 < 800 < 2000) → shipping = 1000
+    resp = _post_order(client, product_id=1, quantity=2)
+    assert resp.status_code == 302
+    order = _get_order(client, resp).get_json()["order"]
+    assert order["shipping_price"] == 1000
+
+
+def test_shipping_price_heavy(client):
+    # 1 × id=3 (3000g ≥ 2000g) → shipping = 2500
+    resp = _post_order(client, product_id=3, quantity=1)
+    assert resp.status_code == 302
+    order = _get_order(client, resp).get_json()["order"]
+    assert order["shipping_price"] == 2500

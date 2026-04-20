@@ -212,3 +212,77 @@ Fichiers racine :
 | `already-paid`          | Commande déjà payée                       |
 | `payment-in-progress`   | Paiement déjà en cours                   |
 | `card-declined`         | Carte de crédit refusée par le service    |
+
+---
+
+## Informations de paiement (test)
+
+Le service de paiement externe est hébergé à l'UQAC :
+
+```
+URL : https://dimensweb.uqac.ca/~jgnault/shops/pay/
+```
+
+### Carte de crédit valide (pour les tests)
+
+| Champ              | Valeur               |
+|--------------------|----------------------|
+| `name`             | `John Doe`           |
+| `number`           | `4242 4242 4242 4242` |
+| `expiration_month` | `9`                  |
+| `expiration_year`  | `2026`               |
+| `cvv`              | `123`                |
+
+> Toute autre combinaison peut être refusée par le service distant.
+
+### Format de la requête de paiement (`PUT /order/<id>`)
+
+```json
+{
+  "credit_card": {
+    "name": "John Doe",
+    "number": "4242 4242 4242 4242",
+    "expiration_month": 9,
+    "expiration_year": 2026,
+    "cvv": "123"
+  }
+}
+```
+
+> Le paiement est traité en arrière-plan par le worker RQ. La réponse immédiate est `202 Accepted`.  
+> Interroger `GET /order/<id>` jusqu'à obtenir un statut `200` avec `"paid": true`.
+
+---
+
+## Adresse de livraison (pour les tests)
+
+Aucune adresse spécifique n'est imposée par l'énoncé. Voici un exemple valide :
+
+| Champ         | Valeur          |
+|---------------|-----------------|
+| `country`     | `Canada`        |
+| `address`     | `123 Rue Test`  |
+| `postal_code` | `G7H 0A1`       |
+| `city`        | `Chicoutimi`    |
+| `province`    | `QC`            |
+
+Provinces acceptées : `QC`, `ON`, `AB`, `BC`, `NS`
+
+### Format de la requête d'adresse (`PUT /order/<id>`)
+
+```json
+{
+  "order": {
+    "email": "test@example.com",
+    "shipping_information": {
+      "country": "Canada",
+      "address": "123 Rue Test",
+      "postal_code": "G7H 0A1",
+      "city": "Chicoutimi",
+      "province": "QC"
+    }
+  }
+}
+```
+
+> Les informations client (adresse) et le paiement doivent être envoyés dans **deux requêtes séparées**.

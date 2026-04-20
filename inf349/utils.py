@@ -1,7 +1,15 @@
 from decimal import Decimal, ROUND_HALF_UP
 
+TAX_RATES = {
+    "QC": 0.15,
+    "ON": 0.13,
+    "AB": 0.05,
+    "BC": 0.12,
+    "NS": 0.14,
+}
 
-def calculate_shipping_price(total_weight_grams):
+
+def shipping_price_cents(total_weight_grams):
     if total_weight_grams <= 500:
         return 500
     if total_weight_grams < 2000:
@@ -9,19 +17,16 @@ def calculate_shipping_price(total_weight_grams):
     return 2500
 
 
-def calculate_tax(amount_cents, province):
-    tax_rates = {
-        "QC": Decimal("0.15"),
-        "ON": Decimal("0.13"),
-        "AB": Decimal("0.05"),
-        "BC": Decimal("0.12"),
-        "NS": Decimal("0.14"),
-    }
+# backward-compatible alias
+calculate_shipping_price = shipping_price_cents
 
-    rate = tax_rates.get(province)
-    if rate is None:
+
+def calculate_tax(amount_cents, province):
+    rate_float = TAX_RATES.get(province)
+    if rate_float is None:
         return Decimal("0.00")
 
+    rate = Decimal(str(rate_float))
     tax = Decimal(amount_cents) * rate
     return tax.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 

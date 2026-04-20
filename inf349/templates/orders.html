@@ -263,8 +263,7 @@
             }).join('');
         }
 
-        await renderUserArea();
-        loadOrders();
+        renderUserArea().then(() => loadOrders());
     </script>
 </body>
 </html>

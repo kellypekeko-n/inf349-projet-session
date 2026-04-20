@@ -427,11 +427,13 @@
     <script>
         const ORDER_ID = {{ order_id }};
         let pollTimer = null;
+        let currentUser = null;
 
         // ── LOGIN ──
         async function renderUserArea() {
             const res = await fetch('/me');
             const d = await res.json();
+            currentUser = d.user || null;
             const area = document.getElementById('user-area');
             if (d.user) {
                 area.innerHTML = `<span style="font-weight:500">👤 ${d.user}</span> <a href="#" onclick="doLogout()" style="color:#6b7280;font-size:0.8rem;padding:4px 8px;border-radius:6px;">Déconnexion</a>`;
@@ -512,6 +514,11 @@
         }
 
         function fmt(cents) { return (cents / 100).toFixed(2) + ' $'; }
+        function decodeHtml(str) {
+            const t = document.createElement('textarea');
+            t.innerHTML = str;
+            return t.value;
+        }
 
         function renderOrder(order) {
             document.getElementById('loading').style.display = 'none';
@@ -566,7 +573,7 @@
                 document.getElementById('t-amount').textContent  = fmt(tx.amount_charged);
                 if (tx.error?.code) {
                     document.getElementById('t-error-row').style.display = 'flex';
-                    document.getElementById('t-error').textContent = `[${tx.error.code}] ${tx.error.name}`;
+                    document.getElementById('t-error').textContent = `[${tx.error.code}] ${decodeHtml(tx.error.name)}`;
                     box.className = 'tx-box failure';
                 } else if (tx.success) {
                     box.className = 'tx-box success';
@@ -584,9 +591,7 @@
 
             // Formulaires (seulement si non payée ET connecté)
             if (!order.paid) {
-                const meRes = await fetch('/me');
-                const meData = await meRes.json();
-                if (meData.user) {
+                if (currentUser) {
                     document.getElementById('shipping-form-section').style.display = 'block';
                     if (si?.address) document.getElementById('payment-form-section').style.display = 'block';
                 } else {
@@ -697,9 +702,28 @@
             return JSON.stringify(data);
         }
 
+        // ── FORMATAGE AUTOMATIQUE NUMÉRO DE CARTE ──
+        document.getElementById('cc-num').addEventListener('input', function () {
+            const cursor = this.selectionStart;
+            const prev   = this.value;
+
+            // Garder uniquement les chiffres, max 16
+            const digits = prev.replace(/\D/g, '').substring(0, 16);
+
+            // Insérer un espace après chaque groupe de 4
+            const formatted = digits.replace(/(.{4})(?=.)/g, '$1 ');
+
+            if (prev !== formatted) {
+                // Ajuster la position du curseur après reformatage
+                const added = formatted.length - prev.length;
+                this.value = formatted;
+                const newCursor = Math.max(0, cursor + added);
+                this.setSelectionRange(newCursor, newCursor);
+            }
+        });
+
         saveOrderToHistory(ORDER_ID);
-        renderUserArea();
-        loadOrder();
+        renderUserArea().then(() => loadOrder());
     </script>
 </body>
 </html>

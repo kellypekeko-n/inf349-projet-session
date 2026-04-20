@@ -3,8 +3,9 @@ import os
 
 from flask import Blueprint, request, jsonify, url_for, current_app, redirect, session
 from redis import Redis
+from werkzeug.security import generate_password_hash, check_password_hash
 
-from .models import Product
+from .models import Product, User, db, Transaction
 from .services import OrderService, ProductService
 from .utils import (
     validate_order_creation,
@@ -12,6 +13,8 @@ from .utils import (
     validate_payment_data,
     format_order_response,
     normalize_products_payload,
+    shipping_price_cents,
+    TAX_RATES,
 )
 from .errors import (
     ValidationError,
@@ -80,13 +83,14 @@ def create_order():
 
 @bp.route("/order/<int:order_id>", methods=["GET"])
 def get_order(order_id):
-    try:
-        r = get_redis_client()
-        cached = r.get(f"order:{order_id}")
-        if cached:
-            return jsonify(json.loads(cached)), 200
-    except Exception:
-        pass
+    if not current_app.testing:
+        try:
+            r = get_redis_client()
+            cached = r.get(f"order:{order_id}")
+            if cached:
+                return jsonify(json.loads(cached)), 200
+        except Exception:
+            pass
 
     order = OrderService.get_order(order_id)
     if not order:
@@ -154,6 +158,44 @@ def update_order(order_id):
         if errors:
             raise ValidationError(errors)
 
+        if current_app.testing:
+            # En mode test : paiement synchrone (pas de worker RQ)
+            if order.paid:
+                raise BusinessError(
+                    message="La commande a déjà été payée.",
+                    code="already-paid",
+                    status_code=422,
+                    field="order",
+                )
+            if not order.email or not order.shipping_information:
+                raise BusinessError(
+                    message="Les informations du client sont nécessaire avant d'appliquer une carte de crédit",
+                    code="missing-fields",
+                    status_code=422,
+                    field="order",
+                )
+            order.payment_status = "processing"
+            order.save()
+            from .tasks import process_payment
+            try:
+                process_payment(order_id, data["credit_card"], current_app.config["PAYMENT_SERVICE_URL"])
+            except Exception:
+                pass
+            # process_payment ferme la DB — la rouvrir
+            if db.is_closed():
+                db.connect()
+            refreshed = OrderService.get_order(order_id)
+            if refreshed.paid:
+                return jsonify(format_order_response(refreshed)), 200
+            # Paiement échoué — retourner l'erreur de la transaction
+            error_code, error_name = "payment-error", "Paiement échoué"
+            if refreshed.transaction_id:
+                tx = Transaction.get_by_id(refreshed.transaction_id)
+                if tx.error_code:
+                    error_code = tx.error_code
+                    error_name = tx.error_name or error_name
+            raise ValidationError([{"field": "credit_card", "code": error_code, "name": error_name}])
+
         OrderService.enqueue_payment(
             order_id=order_id,
             credit_card_info=data["credit_card"],
@@ -164,16 +206,8 @@ def update_order(order_id):
 
 # ── AUTH ──────────────────────────────────────────────────────────────────────
 
-USERS = {
-    "kelly": "1234",
-    "admin": "admin123",
-}
-
-ADMINS = {"admin"}
-
-
 def is_admin():
-    return session.get("user") in ADMINS
+    return session.get("is_admin", False)
 
 
 @bp.route("/login", methods=["POST"])
@@ -181,10 +215,44 @@ def login_route():
     data = request.get_json(silent=True) or {}
     username = data.get("username", "").lower().strip()
     password = data.get("password", "")
-    if USERS.get(username) == password:
-        session["user"] = username
-        return jsonify({"user": username, "is_admin": username in ADMINS})
+    try:
+        user = User.get(User.username == username)
+        if check_password_hash(user.password_hash, password):
+            session["user"] = username
+            session["is_admin"] = user.is_admin
+            return jsonify({"user": username, "is_admin": user.is_admin})
+    except User.DoesNotExist:
+        pass
     return jsonify({"error": "Identifiants invalides"}), 401
+
+
+@bp.route("/register", methods=["POST"])
+def register_route():
+    data = request.get_json(silent=True) or {}
+    username = data.get("username", "").lower().strip()
+    password = data.get("password", "")
+
+    if not username or not password:
+        return jsonify({"error": "Nom d'utilisateur et mot de passe requis"}), 422
+    if len(username) < 3:
+        return jsonify({"error": "Le nom d'utilisateur doit contenir au moins 3 caractères"}), 422
+    if len(password) < 4:
+        return jsonify({"error": "Le mot de passe doit contenir au moins 4 caractères"}), 422
+
+    try:
+        User.get(User.username == username)
+        return jsonify({"error": "Ce nom d'utilisateur est déjà pris"}), 409
+    except User.DoesNotExist:
+        pass
+
+    User.create(
+        username=username,
+        password_hash=generate_password_hash(password),
+        is_admin=False,
+    )
+    session["user"] = username
+    session["is_admin"] = False
+    return jsonify({"user": username, "is_admin": False}), 201
 
 
 @bp.route("/logout", methods=["POST"])
@@ -196,7 +264,7 @@ def logout_route():
 @bp.route("/me", methods=["GET"])
 def me():
     user = session.get("user")
-    return jsonify({"user": user, "is_admin": user in ADMINS if user else False})
+    return jsonify({"user": user, "is_admin": session.get("is_admin", False) if user else False})
 
 
 # ── ADMIN ─────────────────────────────────────────────────────────────────────
